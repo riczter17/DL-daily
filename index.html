@@ -97,7 +97,7 @@ textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(
 <body>
 <div id="app"></div>
 <script>
-var VER="v1.6";
+var VER="v1.7";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -135,30 +135,23 @@ var CHECKLIST_DEF=[
 ];
 
 var QUICK_ACTS=[
+  {l:"Sleep",cat:"sleep"},
   {l:"Meditation",cat:"health"},
   {l:"Workout",cat:"health"},
-  {l:"Couples workout",cat:"health"},
   {l:"Walk",cat:"health"},
-  {l:"Work",cat:"work"},
-  {l:"WFH",cat:"work"},
+  {l:"Prep",cat:"personal"},
   {l:"Commute",cat:"commute"},
-  {l:"Commute home",cat:"commute"},
   {l:"Breakfast",cat:"personal"},
+  {l:"Work",cat:"work"},
   {l:"Lunch",cat:"personal"},
   {l:"Dinner",cat:"personal"},
-  {l:"Prep for work",cat:"personal"},
-  {l:"Light chores",cat:"chores"},
   {l:"Chores",cat:"chores"},
-  {l:"Time with mum",cat:"family"},
   {l:"Family time",cat:"family"},
-  {l:"Fun / couple time",cat:"fun"},
-  {l:"Netflix",cat:"fun"},
-  {l:"Read",cat:"fun"},
-  {l:"Rest / nap",cat:"rest"},
-  {l:"Wind down",cat:"personal"},
+  {l:"Time with mum",cat:"family"},
   {l:"Errands",cat:"personal"},
-  {l:"Shower, prep",cat:"personal"},
-  {l:"Sleep",cat:"sleep"}
+  {l:"Rest",cat:"rest"},
+  {l:"Fun",cat:"fun"},
+  {l:"Wind down",cat:"personal"}
 ];
 
 // Default templates (minutes from midnight)
@@ -387,13 +380,15 @@ function rDay(){
           h+='<span style="font-size:12px;color:var(--dim)">'+durS(b.e-b.s)+'</span>';
           h+='</div>';
           // Label - quick select + custom
+          var isCustom=b.label&&!QUICK_ACTS.some(function(qa){return qa.l===b.label});
           h+='<div><label class="lbl">Activity</label>';
           h+='<select class="fld" style="margin-bottom:6px;appearance:none" onchange="quickAct('+i+',this.value)">';
-          h+='<option value="">Pick common activity...</option>';
+          h+='<option value="">Pick activity...</option>';
           QUICK_ACTS.forEach(function(qa){h+='<option value="'+qa.l+'"'+(b.label===qa.l?' selected':'')+'>'+qa.l+'</option>'});
-          h+='<option value="_custom"'+(b.label&&!QUICK_ACTS.some(function(qa){return qa.l===b.label})?' selected':'')+'>Custom (type below)</option>';
+          h+='<option value="_custom"'+(isCustom?' selected':'')+'>Custom</option>';
           h+='</select>';
-          h+='<input class="fld" value="'+b.label+'" placeholder="Or type activity here..." onblur="updBlk('+i+',\'label\',this.value)"></div>';
+          if(isCustom||!b.label){h+='<input class="fld" value="'+(isCustom?b.label:'')+'" placeholder="Type custom activity..." onblur="updBlk('+i+',\'label\',this.value)">';}
+          h+='</div>';
           // Category
           h+='<label class="lbl mt8">Category</label>';
           h+='<div class="cats">';
@@ -736,8 +731,12 @@ function toggleCheck(id){
   sv();R();
 }
 function quickAct(i,val){
-  if(!val||val==="_custom")return;
+  if(!val)return;
   var day=ensureDay(curDate);
+  if(val==="_custom"){
+    day.blocks[i].label="";
+    sv();R();return;
+  }
   day.blocks[i].label=val;
   var qa=QUICK_ACTS.find(function(q){return q.l===val});
   if(qa)day.blocks[i].cat=qa.cat;
