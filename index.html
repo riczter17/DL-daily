@@ -97,7 +97,7 @@ textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(
 <body>
 <div id="app"></div>
 <script>
-var VER="v1.4";
+var VER="v1.5";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -256,6 +256,17 @@ function mTS(m){if(m>=1440)return"12:00am";var h=Math.floor(m/60),mn=m%60;var ap
 function durS(m){var h=Math.floor(m/60),mn=m%60;if(h===0)return mn+'min';if(mn===0)return h+'h';return h+'h '+mn+'min'}
 
 var data=ld()||{days:{},templates:JSON.parse(JSON.stringify(DEF_TEMPLATES)),checklist:CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}})};
+
+// Migrate checklist if outdated (check for new items)
+if(data.checklist&&!data.checklist.some(function(c){return c.id==="bkfast"})){
+  data.checklist=CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}});
+  sv();
+}
+// Migrate templates if outdated (check for new day types)
+if(data.templates&&!data.templates.nw_wfh){
+  data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));
+  sv();
+}
 
 var view="home",curDate=null,openBlk=null;
 var pickerTarget=null,pickerBlkIdx=null,pickerField=null;
