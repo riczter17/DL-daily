@@ -97,7 +97,7 @@ textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(
 <body>
 <div id="app"></div>
 <script>
-var VER="v1.2";
+var VER="v1.4";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -123,12 +123,41 @@ var DTYPES=[
 function gDT(id){for(var i=0;i<DTYPES.length;i++)if(DTYPES[i].id===id)return DTYPES[i];return null}
 
 var CHECKLIST_DEF=[
-  {id:"sleep",l:"Sleep by 10:30pm"},
-  {id:"meditate",l:"Meditation (any form)"},
+  {id:"meditate",l:"Meditation"},
+  {id:"bkfast",l:"Good breakfast"},
+  {id:"lunch",l:"Good lunch"},
+  {id:"dinner",l:"Good dinner"},
   {id:"steps",l:"8k steps"},
-  {id:"protein",l:"Protein target hit"},
   {id:"bp",l:"BP taken (3x/week)"},
-  {id:"fun",l:"Deliberate fun (not Netflix)"}
+  {id:"fun",l:"Deliberate fun (not Netflix)"},
+  {id:"phone",l:"Phone down by 10pm"},
+  {id:"sleep",l:"In bed by 10:30pm"}
+];
+
+var QUICK_ACTS=[
+  {l:"Meditation",cat:"health"},
+  {l:"Workout",cat:"health"},
+  {l:"Couples workout",cat:"health"},
+  {l:"Walk",cat:"health"},
+  {l:"Work",cat:"work"},
+  {l:"WFH",cat:"work"},
+  {l:"Commute",cat:"commute"},
+  {l:"Commute home",cat:"commute"},
+  {l:"Breakfast",cat:"personal"},
+  {l:"Lunch",cat:"personal"},
+  {l:"Dinner",cat:"personal"},
+  {l:"Prep for work",cat:"personal"},
+  {l:"Light chores",cat:"chores"},
+  {l:"Chores",cat:"chores"},
+  {l:"Time with mum",cat:"family"},
+  {l:"Family time",cat:"family"},
+  {l:"Fun / couple time",cat:"fun"},
+  {l:"Netflix",cat:"fun"},
+  {l:"Read",cat:"fun"},
+  {l:"Rest / nap",cat:"rest"},
+  {l:"Wind down",cat:"personal"},
+  {l:"Errands",cat:"personal"},
+  {l:"Shower, prep",cat:"personal"}
 ];
 
 // Default templates (minutes from midnight)
@@ -243,6 +272,7 @@ function R(){
   else if(view==="day")rDay();
   else if(view==="summary")rSummary();
   else if(view==="templates")rTemplates();
+  else if(view==="checklist_edit")rChecklistEdit();
 }
 
 // ===== HOME =====
@@ -279,6 +309,7 @@ function rHome(){
 
   h+='<button class="btn bo" onclick="view=\'summary\';R()">\u{1F4CA} Weekly Summary</button>';
   h+='<button class="btn bo" onclick="view=\'templates\';R()">\u{2699}\u{FE0F} Edit Templates</button>';
+  h+='<button class="btn bo" onclick="view=\'checklist_edit\';R()">\u{2705} Edit Checklist</button>';
 
   h+='<div class="card mt16"><h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:8px">DATA</h3><div class="ei-row">';
   h+='<button class="bsm" onclick="doExp()">\u{1F4E4} Export</button>';
@@ -327,7 +358,7 @@ function rDay(){
         h+='<div class="blk'+(b.status==='done'?' done':'')+(b.status==='skip'?' skip':'')+'" style="border-left:3px solid '+(cat?cat.c:'var(--bdr)')+'">';
         h+='<div class="blk-top" onclick="openBlk='+(isOpen?'null':i)+';R()">';
         h+='<span class="blk-time">'+mTS(b.s)+' \u{2013} '+mTS(b.e)+'</span>';
-        h+='<span class="blk-name" style="color:'+(cat?cat.c:'var(--txt)')+'">'+b.label+'</span>';
+        h+='<span class="blk-name" style="color:'+(b.label?(cat?cat.c:'var(--txt)'):'var(--dim)')+'">'+(b.label||'Tap to set activity')+'</span>';
         h+='<div class="blk-acts">';
         if(b.energy)h+='<span style="font-size:11px;color:var(--dim)">\u{26A1}'+b.energy+'</span>';
         h+='<span style="font-size:14px">'+statusIcon+'</span>';
@@ -343,9 +374,14 @@ function rDay(){
           h+='<div style="padding:8px 14px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;font-size:14px;font-weight:600;color:var(--wht);cursor:pointer" onclick="openTimePicker('+i+',\'e\')">'+mTS(b.e)+'</div>';
           h+='<span style="font-size:12px;color:var(--dim)">'+durS(b.e-b.s)+'</span>';
           h+='</div>';
-          // Label
+          // Label - quick select + custom
           h+='<div><label class="lbl">Activity</label>';
-          h+='<input class="fld" value="'+b.label+'" onblur="updBlk('+i+',\'label\',this.value)"></div>';
+          h+='<select class="fld" style="margin-bottom:6px;appearance:none" onchange="quickAct('+i+',this.value)">';
+          h+='<option value="">Pick common activity...</option>';
+          QUICK_ACTS.forEach(function(qa){h+='<option value="'+qa.l+'"'+(b.label===qa.l?' selected':'')+'>'+qa.l+'</option>'});
+          h+='<option value="_custom"'+(b.label&&!QUICK_ACTS.some(function(qa){return qa.l===b.label})?' selected':'')+'>Custom (type below)</option>';
+          h+='</select>';
+          h+='<input class="fld" value="'+b.label+'" placeholder="Or type activity here..." onblur="updBlk('+i+',\'label\',this.value)"></div>';
           // Category
           h+='<label class="lbl mt8">Category</label>';
           h+='<div class="cats">';
@@ -606,6 +642,65 @@ function rTplPicker(){
   },50);
 }
 
+// ===== CHECKLIST EDITOR =====
+function rChecklistEdit(){
+  var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">Edit Checklist</span><span style="width:40px"></span></div>';
+  h+='<p style="font-size:13px;color:var(--dim);margin-bottom:16px">Reorder, add, or remove checklist items. Changes apply to all future days.</p>';
+
+  data.checklist.forEach(function(c,i){
+    h+='<div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:10px">';
+    // Reorder buttons
+    h+='<div style="display:flex;flex-direction:column;gap:2px">';
+    h+='<button style="background:transparent;border:none;color:'+(i>0?'var(--acc)':'var(--bdr)');
+    h+=';font-size:14px;padding:2px" '+(i>0?'onclick="clMove('+i+',-1)"':'')+'>\u{25B2}</button>';
+    h+='<button style="background:transparent;border:none;color:'+(i<data.checklist.length-1?'var(--acc)':'var(--bdr)');
+    h+=';font-size:14px;padding:2px" '+(i<data.checklist.length-1?'onclick="clMove('+i+',1)"':'')+'>\u{25BC}</button>';
+    h+='</div>';
+    // Label
+    h+='<span style="flex:1;font-size:14px;font-weight:600">'+c.l+'</span>';
+    // Delete
+    h+='<button style="background:transparent;border:none;color:var(--dim);font-size:14px;padding:4px 8px" onclick="clDel('+i+')">\u{2717}</button>';
+    h+='</div>';
+  });
+
+  // Add new
+  h+='<div class="card" style="padding:12px 16px">';
+  h+='<label class="lbl">Add new item</label>';
+  h+='<div style="display:flex;gap:8px">';
+  h+='<input class="fld" id="cl_new" placeholder="e.g. Take supplements" style="flex:1">';
+  h+='<button class="bsm" onclick="clAdd()">Add</button>';
+  h+='</div></div>';
+
+  h+='<button class="btn bo mt16" onclick="clReset()">Reset to Default</button>';
+  $.innerHTML=h;
+}
+
+function clMove(i,dir){
+  var arr=data.checklist;
+  var j=i+dir;
+  if(j<0||j>=arr.length)return;
+  var tmp=arr[i];arr[i]=arr[j];arr[j]=tmp;
+  sv();R();
+}
+function clDel(i){
+  if(!confirm("Remove \""+data.checklist[i].l+"\" from checklist?"))return;
+  data.checklist.splice(i,1);
+  sv();R();
+}
+function clAdd(){
+  var el=document.getElementById("cl_new");
+  if(!el||!el.value.trim())return;
+  var label=el.value.trim();
+  var id=label.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  data.checklist.push({id:id,l:label});
+  sv();R();
+}
+function clReset(){
+  if(!confirm("Reset checklist to default items?"))return;
+  data.checklist=CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}});
+  sv();R();
+}
+
 // ===== ACTIONS =====
 function setDayType(dtId){
   var day=ensureDay(curDate);
@@ -628,6 +723,14 @@ function toggleCheck(id){
   day.checklist[id]=!day.checklist[id];
   sv();R();
 }
+function quickAct(i,val){
+  if(!val||val==="_custom")return;
+  var day=ensureDay(curDate);
+  day.blocks[i].label=val;
+  var qa=QUICK_ACTS.find(function(q){return q.l===val});
+  if(qa)day.blocks[i].cat=qa.cat;
+  sv();R();
+}
 function updBlk(i,field,val){
   var day=ensureDay(curDate);
   if(field==='energy')val=parseInt(val);
@@ -647,7 +750,7 @@ function delBlk(i){
 function addBlk(){
   var day=ensureDay(curDate);
   var last=day.blocks.length>0?day.blocks[day.blocks.length-1].e:480;
-  day.blocks.push({s:last,e:Math.min(last+60,1440),label:"New block",cat:"personal",energy:null,note:"",status:null});
+  day.blocks.push({s:last,e:Math.min(last+60,1440),label:"",cat:"personal",energy:null,note:"",status:null});
   openBlk=day.blocks.length-1;
   sv();R();
 }
