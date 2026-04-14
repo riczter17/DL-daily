@@ -1,6 +1,16 @@
 # Daily OS Changelog
 
-## v2.1 (14 April 2026)
+## v2.2 (14 April 2026)
+
+### Upcoming Days
+- Home screen now shows **7 days ahead** under an "Upcoming Days" section
+- Tap any future day to set its day type and pre-fill blocks from templates
+- Future days show the same status info as recent days (day type tag, block count, checklist progress)
+
+### Day Type Relabelling
+- Switching day type on a day with existing blocks now prompts: **keep blocks or replace with template**
+- OK keeps all existing blocks and just changes the day label
+- Cancel replaces blocks with the new template (previous behaviour)
 
 ### Activities
 - Added **Shower** under Personal

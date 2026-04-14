@@ -77,7 +77,7 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <body>
 <div id="app"></div>
 <script>
-var VER="v2.1";
+var VER="v2.2";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -338,6 +338,20 @@ function rHome(){
   var td=getDay(today);
   if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today</button>';}
   else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
+  h+='<div class="sec"><h2 class="sec-t">Upcoming Days</h2>';
+  for(var f=1;f<=7;f++){
+    var fdt=addDays(today,f);var fdy=getDay(fdt);
+    var fdtype=fdy&&fdy.dayType?gDT(fdy.dayType):null;
+    var fchecked=0;if(fdy){data.checklist.forEach(function(c){if(fdy.checklist[c.id])fchecked++})}
+    var fblk=fdy?fdy.blocks.length:0;
+    var fcl=fdy&&fdy.customLabel?' ('+fdy.customLabel+')':'';
+    h+='<div class="dc" onclick="curDate=\''+fdt+'\';ensureDay(\''+fdt+'\');view=\'day\';R()">';
+    h+='<div class="dc-l"><div>';
+    h+='<div class="dc-dt">'+fd(fdt)+(fdtype?' <span class="dtag" style="background:'+fdtype.c+'20;color:'+fdtype.c+'">'+fdtype.short+fcl+'</span>':'')+'</div>';
+    h+='<div class="dc-m">'+(fdy?fchecked+'/'+data.checklist.length+' checked \u{00B7} '+fblk+' blocks':'Not started')+'</div>';
+    h+='</div></div></div>';
+  }
+  h+='</div>';
   h+='<div class="sec"><h2 class="sec-t">Recent Days</h2>';
   for(var i=0;i<14;i++){
     var dt=addDays(today,-i);var dy=getDay(dt);var isToday=dt===today;
@@ -595,7 +609,13 @@ function rChecklistEdit(){
 function setDayType(dtId){
   var day=ensureDay(curDate);
   if(day.dayType===dtId)return;
-  if(day.dayType&&day.blocks.length>0){if(!confirm("Switch day type? This replaces the timeline blocks. Checklist is kept."))return}
+  if(day.dayType&&day.blocks.length>0){
+    var choice=confirm("Keep your existing blocks?\n\nOK = Keep blocks, just change the day label\nCancel = Replace blocks with template");
+    if(choice){
+      day.dayType=dtId;
+      openBlk=null;sv();R();return;
+    }
+  }
   var checklist=day.checklist||{};var notes=day.notes||"";var cl=day.customLabel||"";
   day.dayType=dtId;
   var tpl=data.templates[dtId]||[];
