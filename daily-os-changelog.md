@@ -1,5 +1,12 @@
 # Daily OS Changelog
 
+## v2.1 (14 April 2026)
+
+### Activities
+- Added **Shower** under Personal
+- Renamed **Grooming** to **Haircut** under Personal
+- Activity count: 32 across 9 categories
+
 ## v2.0 (14 April 2026)
 
 ### Activity System
