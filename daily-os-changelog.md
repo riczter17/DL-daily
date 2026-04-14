@@ -1,6 +1,13 @@
 # Daily OS Changelog
 
-## v2.3 (14 April 2026)
+## v2.4 (14 April 2026)
+
+### Day Type Switching
+- Replaced browser confirm dialog with a **custom three-option modal** when switching day type on a day with existing blocks:
+  - **Retain blocks**: keeps all existing blocks, just changes the day label
+  - **Replace with template**: overwrites blocks with the new day type's template
+  - **Cancel**: does nothing, closes the modal
+- Tapping outside the modal also cancels
 
 ### Home Screen Layout
 - Hybrid layout: **Today** button always at top, **Upcoming** (7 days) always visible, **Past** days in collapsible weekly groups
@@ -8,11 +15,6 @@
 - Each week header shows date range and logged day count (e.g. "7 Apr - 13 Apr, 5/7 logged")
 - Tap a week header to expand/collapse and view individual day cards
 - Past history extended to 28 days (4 weeks)
-
-### Day Type Relabelling
-- Switching day type on a day with existing blocks now prompts: **keep blocks or replace with template**
-- OK keeps all existing blocks and just changes the day label
-- Cancel replaces blocks with the new template (previous behaviour)
 
 ### Activities
 - Added **Shower** under Personal

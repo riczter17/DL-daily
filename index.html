@@ -75,12 +75,21 @@ textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(
 select.grp{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:14px;outline:none;appearance:none}
 select.grp option{color:var(--txt);background:var(--bg)}
 select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;background:var(--card)}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
+.modal-box{background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:24px 20px;max-width:340px;width:100%}
+.modal-box h3{font-size:16px;font-weight:700;color:var(--wht);margin-bottom:8px}
+.modal-box p{font-size:13px;color:var(--mut);line-height:1.5;margin-bottom:20px}
+.modal-btns{display:flex;flex-direction:column;gap:8px}
+.modal-btn{width:100%;padding:13px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+.modal-btn.primary{background:var(--acc);color:#1a1d27}
+.modal-btn.secondary{background:var(--bg);color:var(--txt);border:1px solid var(--bdr)}
+.modal-btn.ghost{background:transparent;color:var(--mut);font-weight:500}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-var VER="v2.3";
+var VER="v2.4";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -629,20 +638,39 @@ function rChecklistEdit(){
 }
 
 // ===== ACTIONS =====
+var pendingDT=null;
 function setDayType(dtId){
   var day=ensureDay(curDate);
   if(day.dayType===dtId)return;
   if(day.dayType&&day.blocks.length>0){
-    var choice=confirm("Keep your existing blocks?\n\nOK = Keep blocks, just change the day label\nCancel = Replace blocks with template");
-    if(choice){
-      day.dayType=dtId;
-      openBlk=null;sv();R();return;
-    }
+    pendingDT=dtId;
+    showDTModal();
+    return;
   }
+  applyDayType(dtId,false);
+}
+function showDTModal(){
+  var el=document.createElement('div');el.id='dt-modal';el.className='modal-overlay';
+  el.innerHTML='<div class="modal-box"><h3>Switch day type</h3><p>This day already has blocks. What would you like to do?</p><div class="modal-btns">'
+    +'<button class="modal-btn primary" onclick="dtRetain()">Retain blocks</button>'
+    +'<button class="modal-btn secondary" onclick="dtReplace()">Replace with template</button>'
+    +'<button class="modal-btn ghost" onclick="dtCancel()">Cancel</button>'
+    +'</div></div>';
+  el.addEventListener('click',function(e){if(e.target===el)dtCancel()});
+  document.body.appendChild(el);
+}
+function closeDTModal(){var m=document.getElementById('dt-modal');if(m)m.remove()}
+function dtRetain(){closeDTModal();if(!pendingDT)return;var day=ensureDay(curDate);day.dayType=pendingDT;pendingDT=null;openBlk=null;sv();R()}
+function dtReplace(){closeDTModal();if(!pendingDT)return;applyDayType(pendingDT,true);pendingDT=null}
+function dtCancel(){closeDTModal();pendingDT=null}
+function applyDayType(dtId,replaceTpl){
+  var day=ensureDay(curDate);
   var checklist=day.checklist||{};var notes=day.notes||"";var cl=day.customLabel||"";
   day.dayType=dtId;
-  var tpl=data.templates[dtId]||[];
-  day.blocks=tpl.map(function(b){return{s:b.s,e:b.e,label:b.label,cat:b.cat,energy:null,note:"",status:null}});
+  if(replaceTpl||!day.blocks.length){
+    var tpl=data.templates[dtId]||[];
+    day.blocks=tpl.map(function(b){return{s:b.s,e:b.e,label:b.label,cat:b.cat,energy:null,note:"",status:null}});
+  }
   day.checklist=checklist;day.notes=notes;day.customLabel=cl;
   openBlk=null;sv();R();
 }
