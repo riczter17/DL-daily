@@ -25,6 +25,9 @@ button{font-family:inherit;cursor:pointer;-webkit-appearance:none}input,select,t
 .nav .bk{background:transparent;border:none;color:var(--acc);font-size:15px;font-weight:600;padding:8px 0}
 .nav-t{font-size:16px;font-weight:700;color:var(--wht)}
 .sec{margin-top:20px}.sec-t{font-size:13px;font-weight:600;color:var(--mut);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
+.wk-hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;margin-bottom:8px;cursor:pointer}.wk-hdr:active{background:var(--card-h)}
+.wk-hdr-l{font-size:13px;font-weight:600;color:var(--txt)}.wk-hdr-r{font-size:12px;color:var(--mut)}
+.wk-arrow{font-size:11px;color:var(--dim);margin-left:8px;transition:transform .2s;display:inline-block}.wk-arrow.open{transform:rotate(90deg)}
 .fld{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:14px;outline:none}
 .fld::placeholder{color:var(--dim);opacity:1}
 .lbl{display:block;font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
@@ -77,7 +80,7 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <body>
 <div id="app"></div>
 <script>
-var VER="v2.2";
+var VER="v2.3";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -295,6 +298,9 @@ function fd(d){return new Date(d+"T00:00:00").toLocaleDateString("en-GB",{weekda
 function addDays(d,n){var dt=new Date(d+"T00:00:00");dt.setDate(dt.getDate()+n);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')}
 function mTS(m){if(m>=1440)return"12:00am";var h=Math.floor(m/60),mn=m%60;var ap=h>=12?'pm':'am';var h12=h===0?12:h>12?h-12:h;return h12+':'+(mn<10?'0':'')+mn+ap}
 function durS(m){var h=Math.floor(m/60),mn=m%60;if(h===0)return mn+'min';if(mn===0)return h+'h';return h+'h '+mn+'min'}
+function getMonday(d){var dt=new Date(d+"T00:00:00");var day=dt.getDay();var diff=day===0?6:day-1;dt.setDate(dt.getDate()-diff);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')}
+function weekLabel(mon){var end=addDays(mon,6);var ms=new Date(mon+"T00:00:00");var me=new Date(end+"T00:00:00");var s=ms.getDate()+' '+ms.toLocaleDateString("en-GB",{month:"short"});var e=me.getDate()+' '+me.toLocaleDateString("en-GB",{month:"short"});return s+' \u{2013} '+e}
+function toggleWeek(key){openWeeks[key]=!openWeeks[key];R()}
 
 // Migrate from v1
 function migrateV1(){
@@ -313,7 +319,7 @@ if(!data){
 if(!data.checklist)data.checklist=CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}});
 if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv();}
 
-var view="home",curDate=null,openBlk=null;
+var view="home",curDate=null,openBlk=null,openWeeks={};
 var pickerTarget=null,pickerBlkIdx=null,pickerField=null;
 var editTpl=null,editTplBlk=null,tplPicker=null;
 var customLabel="";
@@ -338,7 +344,7 @@ function rHome(){
   var td=getDay(today);
   if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today</button>';}
   else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
-  h+='<div class="sec"><h2 class="sec-t">Upcoming Days</h2>';
+  h+='<div class="sec"><h2 class="sec-t">Upcoming</h2>';
   for(var f=1;f<=7;f++){
     var fdt=addDays(today,f);var fdy=getDay(fdt);
     var fdtype=fdy&&fdy.dayType?gDT(fdy.dayType):null;
@@ -352,19 +358,36 @@ function rHome(){
     h+='</div></div></div>';
   }
   h+='</div>';
-  h+='<div class="sec"><h2 class="sec-t">Recent Days</h2>';
-  for(var i=0;i<14;i++){
-    var dt=addDays(today,-i);var dy=getDay(dt);var isToday=dt===today;
-    var dtype=dy&&dy.dayType?gDT(dy.dayType):null;
-    var checked2=0;if(dy){data.checklist.forEach(function(c){if(dy.checklist[c.id])checked2++})}
-    var blkCount=dy?dy.blocks.length:0;
-    var customLbl=dy&&dy.customLabel?' ('+dy.customLabel+')':'';
-    h+='<div class="dc'+(isToday?' today':'')+'" onclick="curDate=\''+dt+'\';ensureDay(\''+dt+'\');view=\'day\';R()">';
-    h+='<div class="dc-l"><div>';
-    h+='<div class="dc-dt">'+fd(dt)+(isToday?' (today)':'')+(dtype?' <span class="dtag" style="background:'+dtype.c+'20;color:'+dtype.c+'">'+dtype.short+customLbl+'</span>':'')+'</div>';
-    h+='<div class="dc-m">'+(dy?checked2+'/'+data.checklist.length+' checked \u{00B7} '+blkCount+' blocks':'Not started')+'</div>';
-    h+='</div></div></div>';
+  h+='<div class="sec"><h2 class="sec-t">Past</h2>';
+  var weeks={},weekOrder=[];
+  for(var i=1;i<=28;i++){
+    var dt=addDays(today,-i);
+    var mon=getMonday(dt);
+    if(!weeks[mon]){weeks[mon]=[];weekOrder.push(mon)}
+    weeks[mon].push(dt);
   }
+  weekOrder.forEach(function(mon){
+    var days=weeks[mon];
+    var logged=0;days.forEach(function(dt){var dy=getDay(dt);if(dy&&dy.blocks.length>0)logged++});
+    var isOpen=!!openWeeks[mon];
+    h+='<div class="wk-hdr" onclick="toggleWeek(\''+mon+'\')">';
+    h+='<div class="wk-hdr-l"><span class="wk-arrow'+(isOpen?' open':'')+'">\u{25B6}</span> '+weekLabel(mon)+'</div>';
+    h+='<div class="wk-hdr-r">'+logged+'/'+days.length+' logged</div></div>';
+    if(isOpen){
+      days.forEach(function(dt){
+        var dy=getDay(dt);
+        var dtype=dy&&dy.dayType?gDT(dy.dayType):null;
+        var chk=0;if(dy){data.checklist.forEach(function(c){if(dy.checklist[c.id])chk++})}
+        var blk=dy?dy.blocks.length:0;
+        var cl=dy&&dy.customLabel?' ('+dy.customLabel+')':'';
+        h+='<div class="dc" onclick="curDate=\''+dt+'\';ensureDay(\''+dt+'\');view=\'day\';R()">';
+        h+='<div class="dc-l"><div>';
+        h+='<div class="dc-dt">'+fd(dt)+(dtype?' <span class="dtag" style="background:'+dtype.c+'20;color:'+dtype.c+'">'+dtype.short+cl+'</span>':'')+'</div>';
+        h+='<div class="dc-m">'+(dy?chk+'/'+data.checklist.length+' checked \u{00B7} '+blk+' blocks':'Not started')+'</div>';
+        h+='</div></div></div>';
+      });
+    }
+  });
   h+='</div>';
   h+='<button class="btn bo" onclick="view=\'summary\';R()">\u{1F4CA} Weekly Summary</button>';
   h+='<button class="btn bo" onclick="view=\'templates\';R()">\u{2699}\u{FE0F} Edit Templates</button>';

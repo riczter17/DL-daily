@@ -1,11 +1,13 @@
 # Daily OS Changelog
 
-## v2.2 (14 April 2026)
+## v2.3 (14 April 2026)
 
-### Upcoming Days
-- Home screen now shows **7 days ahead** under an "Upcoming Days" section
-- Tap any future day to set its day type and pre-fill blocks from templates
-- Future days show the same status info as recent days (day type tag, block count, checklist progress)
+### Home Screen Layout
+- Hybrid layout: **Today** button always at top, **Upcoming** (7 days) always visible, **Past** days in collapsible weekly groups
+- Past days grouped by week (Monday to Sunday), collapsed by default
+- Each week header shows date range and logged day count (e.g. "7 Apr - 13 Apr, 5/7 logged")
+- Tap a week header to expand/collapse and view individual day cards
+- Past history extended to 28 days (4 weeks)
 
 ### Day Type Relabelling
 - Switching day type on a day with existing blocks now prompts: **keep blocks or replace with template**
