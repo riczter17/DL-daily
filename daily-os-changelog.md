@@ -1,19 +1,28 @@
 # Daily OS Changelog
 
-## v2.4 (14 April 2026)
+## v2.5 (14 April 2026)
+
+### Day View Reorganisation
+- **Timeline now appears first** (primary purpose of the day view)
+- **Daily Checklist moved below timeline** and collapsed by default; tap header to expand, header shows checked count (e.g. "3/5")
+- **Day notes remain at the bottom**
+
+### Block Sorting
+- Added **Sort by time** button in the Timeline header (appears when there's more than one block)
+- Reorders blocks chronologically by start time
+
+### Home Screen
+- **Today button now shows the date** (e.g. "Today · Thu, 16 Apr · 2/5 checked")
+- Start Today button also shows the date when no day has been started yet
 
 ### Day Type Switching
-- Replaced browser confirm dialog with a **custom three-option modal** when switching day type on a day with existing blocks:
-  - **Retain blocks**: keeps all existing blocks, just changes the day label
-  - **Replace with template**: overwrites blocks with the new day type's template
-  - **Cancel**: does nothing, closes the modal
-- Tapping outside the modal also cancels
+- Custom three-option modal: **Retain blocks**, **Replace with template**, **Cancel**
+- Tapping outside the modal cancels
 
 ### Home Screen Layout
 - Hybrid layout: **Today** button always at top, **Upcoming** (7 days) always visible, **Past** days in collapsible weekly groups
 - Past days grouped by week (Monday to Sunday), collapsed by default
-- Each week header shows date range and logged day count (e.g. "7 Apr - 13 Apr, 5/7 logged")
-- Tap a week header to expand/collapse and view individual day cards
+- Each week header shows date range and logged day count
 - Past history extended to 28 days (4 weeks)
 
 ### Activities

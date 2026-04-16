@@ -89,7 +89,7 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <body>
 <div id="app"></div>
 <script>
-var VER="v2.4";
+var VER="v2.5";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -328,7 +328,7 @@ if(!data){
 if(!data.checklist)data.checklist=CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}});
 if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv();}
 
-var view="home",curDate=null,openBlk=null,openWeeks={};
+var view="home",curDate=null,openBlk=null,openWeeks={},openCL=false;
 var pickerTarget=null,pickerBlkIdx=null,pickerField=null;
 var editTpl=null,editTplBlk=null,tplPicker=null;
 var customLabel="";
@@ -351,8 +351,8 @@ function rHome(){
   var today=todayStr();
   var h='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F4CB}</div><h1>Daily OS</h1><p>Your daily operating system</p><p style="font-size:11px;color:var(--dim);margin-top:6px">'+VER+'</p></div>';
   var td=getDay(today);
-  if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today</button>';}
-  else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
+  if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today \u{00B7} '+fd(today)+'</button>';}
+  else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+fd(today)+' \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
   h+='<div class="sec"><h2 class="sec-t">Upcoming</h2>';
   for(var f=1;f<=7;f++){
     var fdt=addDays(today,f);var fdy=getDay(fdt);
@@ -423,15 +423,9 @@ function rDay(){
     h+='<div style="margin-bottom:12px"><input class="fld" value="'+(day.customLabel||'')+'" placeholder="Label this day (e.g. Leave, Sick, Off-site)" onblur="setCustomLabel(this.value)"></div>';
   }
   if(day.dayType){
-    h+='<div class="card"><h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:8px">DAILY CHECKLIST</h3>';
-    data.checklist.forEach(function(c){
-      var on=!!day.checklist[c.id];
-      h+='<div class="cl-item'+(on?' on':'')+'" onclick="toggleCheck(\''+c.id+'\')">';
-      h+='<div class="cl-box">'+(on?'\u{2713}':'')+'</div>';
-      h+='<span class="cl-label">'+c.l+'</span></div>';
-    });
+    h+='<div class="sec" style="margin-top:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec-t" style="margin-bottom:0">Timeline</h2>';
+    if(day.blocks.length>1)h+='<button class="bsm" onclick="sortBlocksByTime()">Sort by time</button>';
     h+='</div>';
-    h+='<div class="sec"><h2 class="sec-t">Timeline</h2>';
     if(day.blocks.length===0){h+='<div style="text-align:center;padding:20px;color:var(--dim)">No blocks yet.</div>';}
     else{
       day.blocks.forEach(function(b,i){
@@ -473,6 +467,20 @@ function rDay(){
       });
     }
     h+='<button class="btn bd mt8" onclick="addBlk()">+ Add block</button></div>';
+    var clChecked=0;data.checklist.forEach(function(c){if(day.checklist[c.id])clChecked++});
+    h+='<div class="wk-hdr" onclick="openCL=!openCL;R()" style="margin-top:20px">';
+    h+='<div class="wk-hdr-l"><span class="wk-arrow'+(openCL?' open':'')+'">\u{25B6}</span> Daily Checklist</div>';
+    h+='<div class="wk-hdr-r">'+clChecked+'/'+data.checklist.length+'</div></div>';
+    if(openCL){
+      h+='<div class="card">';
+      data.checklist.forEach(function(c){
+        var on=!!day.checklist[c.id];
+        h+='<div class="cl-item'+(on?' on':'')+'" onclick="toggleCheck(\''+c.id+'\')">';
+        h+='<div class="cl-box">'+(on?'\u{2713}':'')+'</div>';
+        h+='<span class="cl-label">'+c.l+'</span></div>';
+      });
+      h+='</div>';
+    }
     h+='<div class="sec"><label class="lbl">Day notes</label><textarea rows="3" placeholder="Reflections, observations..." onblur="updDayNote(this.value)">'+(day.notes||'')+'</textarea></div>';
   }
   $.innerHTML=h;
@@ -698,6 +706,11 @@ function addBlk(){
   var last=day.blocks.length>0?day.blocks[day.blocks.length-1].e:480;
   day.blocks.push({s:last,e:Math.min(last+60,1440),label:"",cat:"personal",energy:null,note:"",status:null});
   openBlk=day.blocks.length-1;sv();R();
+}
+function sortBlocksByTime(){
+  var day=ensureDay(curDate);
+  day.blocks.sort(function(a,b){return a.s-b.s});
+  openBlk=null;sv();R();
 }
 function updDayNote(v){var day=ensureDay(curDate);day.notes=v;sv()}
 function openTimePicker(idx,field){pickerTarget=true;pickerBlkIdx=idx;pickerField=field;R()}
