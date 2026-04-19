@@ -1,34 +1,46 @@
 # Daily OS Changelog
 
+## v3.0 (17 April 2026)
+
+### Block Status Overhaul
+- Replaced **Done / Skip** with three statuses: **Planned** (scheduled and done), **Unplanned** (ad hoc and done), **Skipped** (scheduled but not done)
+- Template blocks default to **Planned** automatically
+- Manually added blocks default to **Unplanned** automatically
+- User only needs to intervene to mark a block as **Skipped**
+- Status icons: Planned (green tick), Unplanned (orange diamond), Skipped (skip icon), Unmarked (white square)
+- Existing data migrated automatically (Done becomes Planned, Skip becomes Skipped)
+
+### Summary Overhaul
+- **Key Metrics card** at the top with:
+  - **Adherence rate**: Planned / (Planned + Skipped) as headline percentage
+  - **Disruption load**: Unplanned / (Planned + Unplanned) as percentage
+  - Total hours split across Planned, Unplanned, and Skipped
+- **Time by Category** now counts done blocks only (Planned + Unplanned)
+- **Skipped by Category** shown as separate section highlighting where gaps cluster
+- **Energy average** calculated from done blocks only
+
+### Activities
+- Renamed **Family dinner** to **Family time** under Family
+- Added **Shower** under Personal (v2.5)
+- Renamed **Grooming** to **Haircut** under Personal (v2.5)
+- Activity count: 32 across 9 categories
+
 ## v2.5 (14 April 2026)
 
 ### Day View Reorganisation
-- **Timeline now appears first** (primary purpose of the day view)
-- **Daily Checklist moved below timeline** and collapsed by default; tap header to expand, header shows checked count (e.g. "3/5")
-- **Day notes remain at the bottom**
+- Timeline now appears first (primary purpose of the day view)
+- Daily Checklist moved below timeline and collapsed by default; tap header to expand
+- Day notes remain at the bottom
 
 ### Block Sorting
-- Added **Sort by time** button in the Timeline header (appears when there's more than one block)
-- Reorders blocks chronologically by start time
+- Added Sort by time button in Timeline header
 
 ### Home Screen
-- **Today button now shows the date** (e.g. "Today · Thu, 16 Apr · 2/5 checked")
-- Start Today button also shows the date when no day has been started yet
+- Today button now shows the date
+- Hybrid layout: Today + Upcoming always visible, Past in collapsible weekly groups (28 days)
 
 ### Day Type Switching
-- Custom three-option modal: **Retain blocks**, **Replace with template**, **Cancel**
-- Tapping outside the modal cancels
-
-### Home Screen Layout
-- Hybrid layout: **Today** button always at top, **Upcoming** (7 days) always visible, **Past** days in collapsible weekly groups
-- Past days grouped by week (Monday to Sunday), collapsed by default
-- Each week header shows date range and logged day count
-- Past history extended to 28 days (4 weeks)
-
-### Activities
-- Added **Shower** under Personal
-- Renamed **Grooming** to **Haircut** under Personal
-- Activity count: 32 across 9 categories
+- Custom three-option modal: Retain blocks, Replace with template, Cancel
 
 ## v2.0 (14 April 2026)
 

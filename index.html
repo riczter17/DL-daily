@@ -39,7 +39,7 @@ textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(
 .dc-dt{font-size:14px;font-weight:600}.dc-m{font-size:12px;color:var(--mut);margin-top:2px}
 .dtag{padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600}
 .blk{background:var(--card);border-radius:10px;border:1px solid var(--bdr);margin-bottom:6px;overflow:hidden}
-.blk.done{opacity:.7;border-color:var(--grn)}.blk.skip{opacity:.4}
+.blk.planned{border-color:var(--grn)}.blk.unplanned{border-color:var(--acc)}.blk.skipped{opacity:.45}
 .blk-top{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer}.blk-top:active{background:var(--card-h)}
 .blk-time{font-size:13px;font-weight:700;color:var(--mut);min-width:100px}
 .blk-name{font-size:13px;font-weight:600;flex:1;margin-left:8px}
@@ -89,7 +89,7 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <body>
 <div id="app"></div>
 <script>
-var VER="v2.5";
+var VER="v3.0";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -134,7 +134,7 @@ var ACTIVITIES=[
   {l:"Priority work",cat:"work",grp:"Work"},
   {l:"Wife time",cat:"family",grp:"Family"},
   {l:"Parents time",cat:"family",grp:"Family"},
-  {l:"Family dinner",cat:"family",grp:"Family"},
+  {l:"Family time",cat:"family",grp:"Family"},
   {l:"Commute",cat:"commute",grp:"Commute"},
   {l:"Chores",cat:"chores",grp:"Chores"},
   {l:"Meal prep",cat:"chores",grp:"Chores"},
@@ -327,6 +327,8 @@ if(!data){
 }
 if(!data.checklist)data.checklist=CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}});
 if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv();}
+// Migrate old status values
+(function(){var changed=false;Object.keys(data.days).forEach(function(d){var dy=data.days[d];if(dy.blocks)dy.blocks.forEach(function(b){if(b.status==='done'){b.status='planned';changed=true}if(b.status==='skip'){b.status='skipped';changed=true}})});if(changed)sv()})();
 
 var view="home",curDate=null,openBlk=null,openWeeks={},openCL=false;
 var pickerTarget=null,pickerBlkIdx=null,pickerField=null;
@@ -430,9 +432,9 @@ function rDay(){
     else{
       day.blocks.forEach(function(b,i){
         var cat=gC(b.cat);var isOpen=openBlk===i;
-        var statusIcon=b.status==='done'?'\u{2705}':b.status==='skip'?'\u{23ED}':'\u{2B1C}';
+        var statusIcon=b.status==='planned'?'\u{2705}':b.status==='unplanned'?'\u{1F536}':b.status==='skipped'?'\u{23ED}':'\u{2B1C}';
         var displayLabel=b.label||'';
-        h+='<div class="blk'+(b.status==='done'?' done':'')+(b.status==='skip'?' skip':'')+'" style="border-left:3px solid '+(cat?cat.c:'var(--bdr)')+'">';
+        h+='<div class="blk'+(b.status==='planned'?' planned':'')+(b.status==='unplanned'?' unplanned':'')+(b.status==='skipped'?' skipped':'')+'" style="border-left:3px solid '+(cat?cat.c:'var(--bdr)')+'">';
         h+='<div class="blk-top" onclick="openBlk='+(isOpen?'null':i)+';R()">';
         h+='<span class="blk-time">'+mTS(b.s)+' \u{2013} '+mTS(b.e)+'</span>';
         h+='<span class="blk-name" style="color:'+(displayLabel?(cat?cat.c:'var(--txt)'):'var(--dim)')+'">'+(displayLabel||'Tap to set')+'</span>';
@@ -457,8 +459,9 @@ function rDay(){
           for(var e=1;e<=5;e++)h+='<button class="eng-b'+(b.energy===e?' on':'')+'" onclick="updBlk('+i+',\'energy\','+e+')">'+e+'</button>';
           h+='<span style="font-size:11px;color:var(--dim);align-self:center;margin-left:4px">1=drained 5=peak</span></div>';
           h+='<div style="display:flex;gap:6px;margin:8px 0">';
-          h+='<button style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+(b.status==='done'?'var(--grn)':'var(--bdr)')+';background:'+(b.status==='done'?'var(--grn-s)':'var(--bg)')+';color:'+(b.status==='done'?'var(--grn)':'var(--mut)')+'" onclick="updBlk('+i+',\'status\',\'done\')">\u{2705} Done</button>';
-          h+='<button style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+(b.status==='skip'?'var(--red)':'var(--bdr)')+';background:'+(b.status==='skip'?'var(--red-s)':'var(--bg)')+';color:'+(b.status==='skip'?'var(--red)':'var(--mut)')+'" onclick="updBlk('+i+',\'status\',\'skip\')">\u{23ED} Skip</button></div>';
+          h+='<button style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+(b.status==='planned'?'var(--grn)':'var(--bdr)')+';background:'+(b.status==='planned'?'var(--grn-s)':'var(--bg)')+';color:'+(b.status==='planned'?'var(--grn)':'var(--mut)')+'" onclick="updBlk('+i+',\'status\',\'planned\')">\u{2705} Planned</button>';
+          h+='<button style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+(b.status==='unplanned'?'var(--acc)':'var(--bdr)')+';background:'+(b.status==='unplanned'?'var(--acc-s)':'var(--bg)')+';color:'+(b.status==='unplanned'?'var(--acc)':'var(--mut)')+'" onclick="updBlk('+i+',\'status\',\'unplanned\')">\u{1F536} Unplanned</button>';
+          h+='<button style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+(b.status==='skipped'?'var(--red)':'var(--bdr)')+';background:'+(b.status==='skipped'?'var(--red-s)':'var(--bg)')+';color:'+(b.status==='skipped'?'var(--red)':'var(--mut)')+'" onclick="updBlk('+i+',\'status\',\'skipped\')">\u{23ED} Skipped</button></div>';
           h+='<label class="lbl mt8">Note</label><input class="fld" value="'+(b.note||'')+'" placeholder="Optional note..." onblur="updBlk('+i+',\'note\',this.value)">';
           h+='<button style="background:transparent;border:none;color:var(--red);font-size:13px;font-weight:600;padding:8px 0;margin-top:8px" onclick="delBlk('+i+')">\u{2717} Delete block</button>';
           h+='</div>';
@@ -517,6 +520,33 @@ function rSummary(){
   var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">Weekly Summary</span><span style="width:40px"></span></div>';
   var days7=[];for(var i=6;i>=0;i--){var dt=addDays(today,-i);var dy=getDay(dt);if(dy&&dy.blocks.length>0)days7.push({date:dt,day:dy})}
   if(days7.length===0){h+='<div class="card"><p style="color:var(--dim)">No data for the past 7 days.</p></div>';$.innerHTML=h;return}
+
+  // Collect all blocks
+  var allBlks=[];days7.forEach(function(d){d.day.blocks.forEach(function(b){allBlks.push(b)})});
+  var plannedBlks=allBlks.filter(function(b){return b.status==='planned'});
+  var unplannedBlks=allBlks.filter(function(b){return b.status==='unplanned'});
+  var skippedBlks=allBlks.filter(function(b){return b.status==='skipped'});
+  var doneBlks=plannedBlks.concat(unplannedBlks);
+
+  var plannedMins=plannedBlks.reduce(function(s,b){return s+(b.e-b.s)},0);
+  var unplannedMins=unplannedBlks.reduce(function(s,b){return s+(b.e-b.s)},0);
+  var skippedMins=skippedBlks.reduce(function(s,b){return s+(b.e-b.s)},0);
+  var doneMins=plannedMins+unplannedMins;
+
+  // Headline metrics
+  var adherence=plannedMins+skippedMins>0?Math.round(plannedMins/(plannedMins+skippedMins)*100):100;
+  var disruption=doneMins>0?Math.round(unplannedMins/doneMins*100):0;
+
+  h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{1F3AF} Key Metrics</h3>';
+  h+='<div class="srow"><span>Adherence rate</span><span style="font-weight:700;color:'+(adherence>=70?'var(--grn)':'var(--red)')+'">'+adherence+'%</span></div>';
+  h+='<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Planned done / (Planned done + Skipped)</div>';
+  h+='<div class="srow"><span>Disruption load</span><span style="font-weight:700;color:'+(disruption<=35?'var(--grn)':'var(--acc)')+'">'+disruption+'%</span></div>';
+  h+='<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Unplanned / all done hours</div>';
+  h+='<div class="srow"><span>Planned</span><span style="font-weight:700;color:var(--grn)">'+(plannedMins/60).toFixed(1)+'h</span></div>';
+  h+='<div class="srow"><span>Unplanned</span><span style="font-weight:700;color:var(--acc)">'+(unplannedMins/60).toFixed(1)+'h</span></div>';
+  h+='<div class="srow"><span>Skipped</span><span style="font-weight:700;color:var(--red)">'+(skippedMins/60).toFixed(1)+'h</span></div>';
+  h+='</div>';
+
   // Checklist streaks
   h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{2705} Habit Streaks (7 days)</h3>';
   data.checklist.forEach(function(c){
@@ -531,23 +561,39 @@ function rSummary(){
     h+='<span style="font-size:12px;color:var(--dim);margin-left:6px">'+hits+'/7</span></div></div>';
   });
   h+='</div>';
-  // Time by category
+
+  // Time by category (done blocks only)
   var catMins={};CATS.forEach(function(c){catMins[c.id]=0});
-  var totalMins=0;
-  days7.forEach(function(d){d.day.blocks.forEach(function(b){var dur=b.e-b.s;catMins[b.cat]=(catMins[b.cat]||0)+dur;totalMins+=dur})});
+  doneBlks.forEach(function(b){var dur=b.e-b.s;catMins[b.cat]=(catMins[b.cat]||0)+dur});
   var sortedCats=Object.keys(catMins).filter(function(k){return catMins[k]>0}).sort(function(a,b){return catMins[b]-catMins[a]});
   var maxCat=sortedCats.length?catMins[sortedCats[0]]:1;
-  h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{1F4CA} Time by Category</h3>';
+  h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{1F4CA} Time by Category (done only)</h3>';
   sortedCats.forEach(function(catId){
-    var cat=gC(catId);var mins=catMins[catId];var pct=totalMins>0?Math.round(mins/totalMins*100):0;
+    var cat=gC(catId);var mins=catMins[catId];
     h+='<div class="sbar"><span class="sbar-l">'+cat.e+' '+cat.l+'</span><div class="sbar-t"><div class="sbar-f" style="width:'+Math.round(mins/maxCat*100)+'%;background:'+cat.c+'"></div></div><span class="sbar-v">'+(mins/60).toFixed(1)+'h</span></div>';
   });
+  if(sortedCats.length===0)h+='<p style="color:var(--dim);font-size:13px">No done blocks recorded.</p>';
   h+='</div>';
-  // Energy
-  var allE=[];days7.forEach(function(d){d.day.blocks.forEach(function(b){if(b.energy)allE.push(b.energy)})});
+
+  // Skip concentration by category
+  var skipCatMins={};CATS.forEach(function(c){skipCatMins[c.id]=0});
+  skippedBlks.forEach(function(b){var dur=b.e-b.s;skipCatMins[b.cat]=(skipCatMins[b.cat]||0)+dur});
+  var sortedSkipCats=Object.keys(skipCatMins).filter(function(k){return skipCatMins[k]>0}).sort(function(a,b){return skipCatMins[b]-skipCatMins[a]});
+  if(sortedSkipCats.length>0){
+    var maxSkip=skipCatMins[sortedSkipCats[0]];
+    h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{23ED} Skipped by Category</h3>';
+    sortedSkipCats.forEach(function(catId){
+      var cat=gC(catId);var mins=skipCatMins[catId];
+      h+='<div class="sbar"><span class="sbar-l">'+cat.e+' '+cat.l+'</span><div class="sbar-t"><div class="sbar-f" style="width:'+Math.round(mins/maxSkip*100)+'%;background:var(--red)"></div></div><span class="sbar-v">'+(mins/60).toFixed(1)+'h</span></div>';
+    });
+    h+='</div>';
+  }
+
+  // Energy (done blocks only)
+  var allE=[];doneBlks.forEach(function(b){if(b.energy)allE.push(b.energy)});
   if(allE.length>0){
     var avg=(allE.reduce(function(s,v){return s+v},0)/allE.length).toFixed(1);
-    h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{26A1} Energy</h3>';
+    h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{26A1} Energy (done blocks)</h3>';
     h+='<div class="srow"><span>Average</span><span style="font-weight:700;color:'+(parseFloat(avg)>=3?'var(--grn)':'var(--red)')+'">'+avg+'/5</span></div></div>';
   }
   $.innerHTML=h;
@@ -677,7 +723,7 @@ function applyDayType(dtId,replaceTpl){
   day.dayType=dtId;
   if(replaceTpl||!day.blocks.length){
     var tpl=data.templates[dtId]||[];
-    day.blocks=tpl.map(function(b){return{s:b.s,e:b.e,label:b.label,cat:b.cat,energy:null,note:"",status:null}});
+    day.blocks=tpl.map(function(b){return{s:b.s,e:b.e,label:b.label,cat:b.cat,energy:null,note:"",status:"planned",src:"tpl"}});
   }
   day.checklist=checklist;day.notes=notes;day.customLabel=cl;
   openBlk=null;sv();R();
@@ -704,7 +750,7 @@ function delBlk(i){var day=ensureDay(curDate);day.blocks.splice(i,1);openBlk=nul
 function addBlk(){
   var day=ensureDay(curDate);
   var last=day.blocks.length>0?day.blocks[day.blocks.length-1].e:480;
-  day.blocks.push({s:last,e:Math.min(last+60,1440),label:"",cat:"personal",energy:null,note:"",status:null});
+  day.blocks.push({s:last,e:Math.min(last+60,1440),label:"",cat:"personal",energy:null,note:"",status:"unplanned"});
   openBlk=day.blocks.length-1;sv();R();
 }
 function sortBlocksByTime(){
