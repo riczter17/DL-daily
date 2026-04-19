@@ -1,5 +1,30 @@
 # Daily OS Changelog
 
+## v3.2 (19 April 2026)
+
+### My Activities (Persistent Custom Activities)
+- Custom activity labels now auto-save to a personal activity library
+- When you type a custom label and set its category, it's registered to **My Activities**
+- **My Activities** appears as a new group in the activity dropdown once you have any saved
+- Picking a saved custom activity auto-sets its category (no more inconsistent categorisation)
+- Changing the category on an existing custom activity updates the saved mapping globally
+- New **My Activities** view accessible from the home screen, lists all saved custom activities with their categories and allows removal
+- Category picker is always visible when a block is in custom mode (label not in predefined library), even for saved My Activities
+
+### Morning Energy Score
+- New prominent panel at the top of the day view, above Timeline
+- 1-5 rating for "How rested do you feel on waking?"
+- Tap a number to log, tap Clear to reset
+- Added to Weekly Summary:
+  - **Average** (7 days)
+  - **Days logged** (x/7)
+  - **Days at 3 or above**
+  - 7-day visual strip, colour-coded (green for 4+, orange for 3, red for below 3)
+
+### Bug Fix
+- Custom activities no longer silently inherit whatever category the block was created with
+- Category picker now explicit and editable for all custom/My Activities entries
+
 ## v3.1 (19 April 2026)
 
 ### Activities

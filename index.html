@@ -89,7 +89,7 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <body>
 <div id="app"></div>
 <script>
-var VER="v3.1";
+var VER="v3.2";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -151,7 +151,11 @@ var ACTIVITIES=[
   {l:"Gaming",cat:"fun",grp:"Fun"},
   {l:"Sleep",cat:"sleep",grp:"Sleep"}
 ];
-function gAct(label){for(var i=0;i<ACTIVITIES.length;i++)if(ACTIVITIES[i].l===label)return ACTIVITIES[i];return null}
+function gAct(label){
+  for(var i=0;i<ACTIVITIES.length;i++)if(ACTIVITIES[i].l===label)return ACTIVITIES[i];
+  if(data&&data.customActivities)for(var j=0;j<data.customActivities.length;j++)if(data.customActivities[j].l===label)return data.customActivities[j];
+  return null;
+}
 
 var ACT_GROUPS=["Health","Work","Family","Commute","Personal","Chores","Rest","Fun","Sleep"];
 
@@ -164,6 +168,11 @@ function actOpts(sel){
     items.forEach(function(a){h+='<option value="'+a.l+'"'+(sel===a.l?' selected':'')+'>'+a.l+'</option>'});
     h+='</optgroup>';
   });
+  if(data&&data.customActivities&&data.customActivities.length){
+    h+='<optgroup label="My Activities">';
+    data.customActivities.forEach(function(a){h+='<option value="'+a.l+'"'+(sel===a.l?' selected':'')+'>'+a.l+'</option>'});
+    h+='</optgroup>';
+  }
   h+='<optgroup label="Other"><option value="_custom"'+(sel&&!gAct(sel)?' selected':'')+'>Custom...</option></optgroup>';
   return h;
 }
@@ -340,9 +349,10 @@ var data=ld();
 if(!data){
   var migrated=migrateV1();
   if(migrated){data=migrated;data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv()}
-  else{data={days:{},templates:JSON.parse(JSON.stringify(DEF_TEMPLATES)),checklist:CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}})};}
+  else{data={days:{},templates:JSON.parse(JSON.stringify(DEF_TEMPLATES)),checklist:CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}}),customActivities:[]};}
 }
 if(!data.checklist)data.checklist=CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}});
+if(!data.customActivities)data.customActivities=[];
 if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv();}
 // Migrate: add Sleep blocks to existing templates if missing (v3.1)
 (function(){var changed=false;Object.keys(data.templates).forEach(function(k){var tpl=data.templates[k];if(!tpl||!tpl.length||k==='custom')return;var nonSleep=tpl.filter(function(b){return b.cat!=='sleep'});if(!nonSleep.length)return;var hasStartSleep=tpl.some(function(b){return b.cat==='sleep'&&b.s===0});var hasEndSleep=tpl.some(function(b){return b.cat==='sleep'&&b.e===1440});if(!hasStartSleep){var firstStart=Math.min.apply(null,nonSleep.map(function(b){return b.s}));if(firstStart>0){tpl.unshift({s:0,e:firstStart,label:"Sleep",cat:"sleep"});changed=true}}if(!hasEndSleep){var lastEnd=Math.max.apply(null,nonSleep.map(function(b){return b.e}));if(lastEnd<1440){tpl.push({s:lastEnd,e:1440,label:"Sleep",cat:"sleep"});changed=true}}tpl.sort(function(a,b){return a.s-b.s})});if(changed)sv()})();
@@ -356,7 +366,7 @@ var customLabel="";
 var $=document.getElementById("app");
 
 function getDay(d){return data.days[d]||null}
-function ensureDay(d){if(!data.days[d])data.days[d]={dayType:null,blocks:[],checklist:{},notes:"",customLabel:""};return data.days[d]}
+function ensureDay(d){if(!data.days[d])data.days[d]={dayType:null,blocks:[],checklist:{},notes:"",customLabel:"",morningEnergy:null};return data.days[d]}
 
 function R(){
   if(pickerTarget)return rPicker();
@@ -366,6 +376,7 @@ function R(){
   else if(view==="summary")rSummary();
   else if(view==="templates")rTemplates();
   else if(view==="checklist_edit")rChecklistEdit();
+  else if(view==="my_activities")rMyActivities();
 }
 
 function rHome(){
@@ -422,6 +433,7 @@ function rHome(){
   h+='<button class="btn bo" onclick="view=\'summary\';R()">\u{1F4CA} Weekly Summary</button>';
   h+='<button class="btn bo" onclick="view=\'templates\';R()">\u{2699}\u{FE0F} Edit Templates</button>';
   h+='<button class="btn bo" onclick="view=\'checklist_edit\';R()">\u{2705} Edit Checklist</button>';
+  h+='<button class="btn bo" onclick="view=\'my_activities\';R()">\u{2728} My Activities</button>';
   h+='<div class="card mt16"><h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:8px">DATA</h3><div class="ei-row">';
   h+='<button class="bsm" onclick="doExp()">\u{1F4E4} Export</button>';
   h+='<label class="bsm-m" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer">\u{1F4E5} Import<input type="file" accept=".json" style="display:none" onchange="doImp(event)"></label>';
@@ -444,6 +456,18 @@ function rDay(){
     h+='<div style="margin-bottom:12px"><input class="fld" value="'+(day.customLabel||'')+'" placeholder="Label this day (e.g. Leave, Sick, Off-site)" onblur="setCustomLabel(this.value)"></div>';
   }
   if(day.dayType){
+    // Morning Energy
+    h+='<div class="card" style="padding:14px;margin-bottom:12px;background:var(--card)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    h+='<div><div style="font-size:14px;font-weight:700;color:var(--wht)">\u{2600}\u{FE0F} Morning Energy</div>';
+    h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">How rested do you feel on waking?</div></div>';
+    if(day.morningEnergy){h+='<button style="background:transparent;border:none;color:var(--dim);font-size:11px;cursor:pointer" onclick="setMorningEnergy(null)">Clear</button>';}
+    h+='</div><div style="display:flex;gap:6px">';
+    for(var me=1;me<=5;me++){
+      var onSel=day.morningEnergy===me;
+      h+='<button style="flex:1;padding:10px;border-radius:8px;font-size:14px;font-weight:700;border:1px solid '+(onSel?'var(--acc)':'var(--bdr)')+';background:'+(onSel?'var(--acc-s)':'var(--bg)')+';color:'+(onSel?'var(--acc)':'var(--mut)')+';cursor:pointer" onclick="setMorningEnergy('+me+')">'+me+'</button>';
+    }
+    h+='</div><div style="font-size:10px;color:var(--dim);margin-top:6px;display:flex;justify-content:space-between"><span>1 = drained</span><span>5 = peak</span></div></div>';
+
     h+='<div class="sec" style="margin-top:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec-t" style="margin-bottom:0">Timeline</h2>';
     if(day.blocks.length>1)h+='<button class="bsm" onclick="sortBlocksByTime()">Sort by time</button>';
     h+='</div>';
@@ -469,10 +493,21 @@ function rDay(){
           h+='<span style="color:var(--acc)">\u{2192}</span>';
           h+='<div style="padding:8px 14px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;font-size:14px;font-weight:600;color:var(--wht);cursor:pointer" onclick="openTimePicker('+i+',\'e\')">'+mTS(b.e)+'</div>';
           h+='<span style="font-size:12px;color:var(--dim)">'+durS(b.e-b.s)+'</span></div>';
-          var isCustom=b.label&&!gAct(b.label);
+          var isPredefined=b.label&&ACTIVITIES.some(function(a){return a.l===b.label});
+          var inCustomMode=b.label?!isPredefined:true;
+          var selVal=b.label?(isPredefined?b.label:'_custom'):'';
           h+='<div><label class="lbl">Activity</label>';
-          h+='<select class="grp" onchange="actSel('+i+',this.value)">'+actOpts(isCustom?'_custom':b.label)+'</select>';
-          if(isCustom||(!b.label&&b.cat)){h+='<input class="fld mt8" value="'+(isCustom?b.label:'')+'" placeholder="Type custom activity..." onblur="updBlk('+i+',\'label\',this.value)">';}
+          h+='<select class="grp" onchange="actSel('+i+',this.value)">'+actOpts(selVal)+'</select>';
+          if(inCustomMode){
+            h+='<input class="fld mt8" value="'+(b.label||'')+'" placeholder="Type custom activity..." onblur="updBlk('+i+',\'label\',this.value)">';
+            h+='<label class="lbl mt8">Category</label>';
+            h+='<select class="grp" onchange="updBlk('+i+',\'cat\',this.value)">';
+            CATS.forEach(function(c){h+='<option value="'+c.id+'"'+(b.cat===c.id?' selected':'')+'>'+c.e+' '+c.l+'</option>'});
+            h+='</select>';
+            if(b.label&&data.customActivities.some(function(a){return a.l===b.label})){
+              h+='<div style="font-size:11px;color:var(--dim);margin-top:4px">\u{2713} Saved to My Activities. Category changes update the saved entry.</div>';
+            }
+          }
           h+='</div>';
           h+='<label class="lbl mt8">Energy</label><div class="eng">';
           for(var e=1;e<=5;e++)h+='<button class="eng-b'+(b.energy===e?' on':'')+'" onclick="updBlk('+i+',\'energy\','+e+')">'+e+'</button>';
@@ -564,6 +599,27 @@ function rSummary(){
   h+='<div class="srow"><span>Planned</span><span style="font-weight:700;color:var(--grn)">'+(plannedMins/60).toFixed(1)+'h</span></div>';
   h+='<div class="srow"><span>Unplanned</span><span style="font-weight:700;color:var(--acc)">'+(unplannedMins/60).toFixed(1)+'h</span></div>';
   h+='<div class="srow"><span>Skipped</span><span style="font-weight:700;color:var(--red)">'+(skippedMins/60).toFixed(1)+'h</span></div>';
+  h+='</div>';
+
+  // Morning Energy card
+  var meVals=days7.filter(function(d){return d.day.morningEnergy}).map(function(d){return d.day.morningEnergy});
+  h+='<div class="card"><h3 style="font-size:15px;font-weight:700;color:var(--wht);margin-bottom:12px">\u{2600}\u{FE0F} Morning Energy (7 days)</h3>';
+  if(!meVals.length){
+    h+='<p style="font-size:13px;color:var(--dim)">No morning energy logged yet. Log it first thing each day to track sleep recovery.</p>';
+  } else {
+    var meAvg=meVals.reduce(function(a,b){return a+b},0)/meVals.length;
+    var meAbove3=meVals.filter(function(v){return v>=3}).length;
+    h+='<div class="srow"><span>Average</span><span style="font-weight:700;color:'+(meAvg>=3?'var(--grn)':'var(--red)')+'">'+meAvg.toFixed(1)+'/5</span></div>';
+    h+='<div class="srow"><span>Days logged</span><span style="font-weight:700">'+meVals.length+'/7</span></div>';
+    h+='<div class="srow"><span>Days at 3 or above</span><span style="font-weight:700;color:var(--grn)">'+meAbove3+'</span></div>';
+    h+='<div style="display:flex;gap:4px;margin-top:10px">';
+    for(var mi=6;mi>=0;mi--){
+      var mdt=addDays(today,-mi);var mdy=getDay(mdt);var mv=mdy&&mdy.morningEnergy;
+      var mbg=mv?(mv>=4?'var(--grn)':mv>=3?'var(--acc)':'var(--red)'):'var(--bdr)';
+      h+='<div style="flex:1;padding:6px 0;border-radius:4px;text-align:center;font-size:12px;font-weight:700;background:'+mbg+';color:'+(mv?'#0f1117':'var(--dim)')+'">'+(mv||'-')+'</div>';
+    }
+    h+='</div>';
+  }
   h+='</div>';
 
   // Checklist streaks
@@ -710,6 +766,25 @@ function rChecklistEdit(){
   $.innerHTML=h;
 }
 
+function rMyActivities(){
+  var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">My Activities</span><span style="width:40px"></span></div>';
+  h+='<div class="card"><p style="font-size:13px;color:var(--mut);margin-bottom:12px">Activities you\'ve created appear here. They\'re auto-saved when you type a custom activity and pick a category. Tap to remove.</p>';
+  if(!data.customActivities||!data.customActivities.length){
+    h+='<p style="font-size:14px;color:var(--dim);text-align:center;padding:20px 0">No custom activities yet. Create one by adding a block, picking Custom from the activity dropdown, then typing a label and picking a category.</p>';
+  } else {
+    data.customActivities.forEach(function(a){
+      var cat=CATS.filter(function(c){return c.id===a.cat})[0];
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg);border-radius:8px;margin-bottom:8px">';
+      h+='<div><div style="font-size:14px;font-weight:600;color:var(--wht)">'+a.l+'</div>';
+      h+='<div style="font-size:12px;color:'+(cat?cat.c:'var(--mut)')+';margin-top:2px">'+(cat?cat.e+' '+cat.l:a.cat)+'</div></div>';
+      h+='<button style="background:transparent;border:none;color:var(--red);font-size:13px;font-weight:600;cursor:pointer" onclick="delCustomActivity(\''+a.l.replace(/'/g,"\\'")+'\')">Remove</button>';
+      h+='</div>';
+    });
+  }
+  h+='</div>';
+  $.innerHTML=h;
+}
+
 // ===== ACTIONS =====
 var pendingDT=null;
 function setDayType(dtId){
@@ -748,6 +823,7 @@ function applyDayType(dtId,replaceTpl){
   openBlk=null;sv();R();
 }
 function setCustomLabel(v){var day=ensureDay(curDate);day.customLabel=v;sv()}
+function setMorningEnergy(v){var day=ensureDay(curDate);day.morningEnergy=v;sv();R()}
 function toggleCheck(id){var day=ensureDay(curDate);day.checklist[id]=!day.checklist[id];sv();R()}
 function actSel(i,val){
   var day=ensureDay(curDate);
@@ -763,7 +839,20 @@ function updBlk(i,field,val){
   if(field==='energy')val=parseInt(val);
   if(field==='status'){day.blocks[i].status=day.blocks[i].status===val?null:val}
   else{day.blocks[i][field]=val}
-  sv();if(field==='cat'||field==='energy'||field==='status')R();
+  var b=day.blocks[i];
+  // Auto-register or update custom activity when label/cat is set and label isn't predefined
+  if((field==='cat'||field==='label')&&b.label&&!ACTIVITIES.some(function(a){return a.l===b.label})){
+    var existingIdx=-1;
+    for(var k=0;k<data.customActivities.length;k++){if(data.customActivities[k].l===b.label){existingIdx=k;break}}
+    if(existingIdx>=0){data.customActivities[existingIdx].cat=b.cat;}
+    else{data.customActivities.push({l:b.label,cat:b.cat,grp:"My Activities"});}
+  }
+  sv();if(field==='cat'||field==='energy'||field==='status'||field==='label')R();
+}
+function delCustomActivity(label){
+  if(!confirm('Remove "'+label+'" from My Activities? Existing blocks with this label keep their category.'))return;
+  data.customActivities=data.customActivities.filter(function(a){return a.l!==label});
+  sv();R();
 }
 function delBlk(i){var day=ensureDay(curDate);day.blocks.splice(i,1);openBlk=null;sv();R()}
 function addBlk(){
