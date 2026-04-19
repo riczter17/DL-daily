@@ -1,5 +1,23 @@
 # Daily OS Changelog
 
+## v3.1 (19 April 2026)
+
+### Activities
+- Added **Chiro** under Health
+- Health now covers: Meditation, Workout, Couples workout, Walk, Stretch, Counselling, Medical appointment, Chiro
+- Activity count: 33 across 9 categories
+
+### Templates
+- Added **Sleep blocks** at the start and end of every default template
+  - Start: 12:00am to wake time
+  - End: wind-down end to 12:00am
+- Applies to all 8 non-custom templates (NW-WIO, NW-WFH, W-WFH, M-WIO, M-WFH, WM-WFH, Saturday, Sunday)
+
+### Migration
+- Existing user templates are auto-upgraded with Sleep blocks if missing
+- Non-destructive: preserves any customisations to other blocks
+- Checks each template for a Sleep block starting at 0 and one ending at 1440; adds whichever is missing based on the earliest and latest non-sleep block times
+
 ## v3.0 (17 April 2026)
 
 ### Block Status Overhaul
