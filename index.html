@@ -89,7 +89,7 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <body>
 <div id="app"></div>
 <script>
-var VER="v3.2";
+var VER="v3.3";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -125,6 +125,7 @@ var ACTIVITIES=[
   {l:"Counselling",cat:"health",grp:"Health"},
   {l:"Medical appointment",cat:"health",grp:"Health"},
   {l:"Chiro",cat:"health",grp:"Health"},
+  {l:"BP reading",cat:"health",grp:"Health"},
   {l:"Prep",cat:"personal",grp:"Personal"},
   {l:"Meal",cat:"personal",grp:"Personal"},
   {l:"Wind down",cat:"personal",grp:"Personal"},
@@ -318,7 +319,8 @@ var DEF_TEMPLATES={
     {s:1020,e:1080,label:"Meal",cat:"personal"},
     {s:1080,e:1200,label:"Parents time",cat:"family"},
     {s:1200,e:1230,label:"Prep",cat:"personal"},
-    {s:1230,e:1275,label:"Reading",cat:"fun"},
+    {s:1230,e:1260,label:"Reading",cat:"fun"},
+    {s:1260,e:1275,label:"BP reading",cat:"health"},
     {s:1275,e:1320,label:"Wind down",cat:"personal"},
     {s:1320,e:1440,label:"Sleep",cat:"sleep"}
   ],
@@ -356,6 +358,8 @@ if(!data.customActivities)data.customActivities=[];
 if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv();}
 // Migrate: add Sleep blocks to existing templates if missing (v3.1)
 (function(){var changed=false;Object.keys(data.templates).forEach(function(k){var tpl=data.templates[k];if(!tpl||!tpl.length||k==='custom')return;var nonSleep=tpl.filter(function(b){return b.cat!=='sleep'});if(!nonSleep.length)return;var hasStartSleep=tpl.some(function(b){return b.cat==='sleep'&&b.s===0});var hasEndSleep=tpl.some(function(b){return b.cat==='sleep'&&b.e===1440});if(!hasStartSleep){var firstStart=Math.min.apply(null,nonSleep.map(function(b){return b.s}));if(firstStart>0){tpl.unshift({s:0,e:firstStart,label:"Sleep",cat:"sleep"});changed=true}}if(!hasEndSleep){var lastEnd=Math.max.apply(null,nonSleep.map(function(b){return b.e}));if(lastEnd<1440){tpl.push({s:lastEnd,e:1440,label:"Sleep",cat:"sleep"});changed=true}}tpl.sort(function(a,b){return a.s-b.s})});if(changed)sv()})();
+// Migrate: add BP reading to Sunday template if missing (v3.3)
+(function(){var s=data.templates&&data.templates.sunday;if(!s)return;if(s.some(function(b){return b.label==='BP reading'}))return;var readingBlk=s.filter(function(b){return b.label==='Reading'&&b.e===1275})[0];if(readingBlk){readingBlk.e=1260;s.push({s:1260,e:1275,label:"BP reading",cat:"health"});s.sort(function(a,b){return a.s-b.s});sv()}})();
 // Migrate old status values
 (function(){var changed=false;Object.keys(data.days).forEach(function(d){var dy=data.days[d];if(dy.blocks)dy.blocks.forEach(function(b){if(b.status==='done'){b.status='planned';changed=true}if(b.status==='skip'){b.status='skipped';changed=true}})});if(changed)sv()})();
 

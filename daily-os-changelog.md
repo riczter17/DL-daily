@@ -1,5 +1,21 @@
 # Daily OS Changelog
 
+## v3.3 (19 April 2026)
+
+### Activities
+- Added **BP reading** under Health
+- Health now covers: Meditation, Workout, Couples workout, Walk, Stretch, Counselling, Medical appointment, Chiro, BP reading
+
+### Sunday Template
+- Added **BP reading** block at 21:00 to 21:15 (15 min, Health)
+- Reading block shortened from 45 min to 30 min (20:30 to 21:00) to accommodate
+- Wind down unchanged at 21:15 to 22:00
+
+### Migration
+- Non-destructive auto-migration for existing Sunday templates:
+  - If Sunday has a Reading block ending at 21:15 and no BP reading block, splits it and inserts BP reading 21:00 to 21:15
+  - Preserves customisations: if Reading block has been modified or moved, migration is skipped
+
 ## v3.2 (19 April 2026)
 
 ### My Activities (Persistent Custom Activities)
@@ -29,7 +45,6 @@
 
 ### Activities
 - Added **Chiro** under Health
-- Health now covers: Meditation, Workout, Couples workout, Walk, Stretch, Counselling, Medical appointment, Chiro
 - Activity count: 33 across 9 categories
 
 ### Templates
@@ -41,7 +56,6 @@
 ### Migration
 - Existing user templates are auto-upgraded with Sleep blocks if missing
 - Non-destructive: preserves any customisations to other blocks
-- Checks each template for a Sleep block starting at 0 and one ending at 1440; adds whichever is missing based on the earliest and latest non-sleep block times
 
 ## v3.0 (17 April 2026)
 
@@ -66,7 +80,6 @@
 - Renamed **Family dinner** to **Family time** under Family
 - Added **Shower** under Personal (v2.5)
 - Renamed **Grooming** to **Haircut** under Personal (v2.5)
-- Activity count: 32 across 9 categories
 
 ## v2.5 (14 April 2026)
 
