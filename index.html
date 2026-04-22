@@ -89,7 +89,7 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <body>
 <div id="app"></div>
 <script>
-var VER="v3.3";
+var VER="v3.5";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -184,7 +184,6 @@ var CHECKLIST_DEF=[
   {id:"lunch",l:"Good lunch"},
   {id:"dinner",l:"Good dinner"},
   {id:"steps",l:"8k steps"},
-  {id:"bp",l:"BP taken (3x/week)"},
   {id:"fun",l:"Deliberate fun (not Netflix)"},
   {id:"phone",l:"Phone down by 10pm"},
   {id:"sleep",l:"In bed by 10:30pm"}
@@ -195,7 +194,8 @@ var DEF_TEMPLATES={
     {s:0,e:360,label:"Sleep",cat:"sleep"},
     {s:360,e:375,label:"Meditation",cat:"health"},
     {s:375,e:420,label:"Prep",cat:"personal"},
-    {s:420,e:480,label:"Commute",cat:"commute"},
+    {s:420,e:465,label:"Commute",cat:"commute"},
+    {s:465,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
     {s:780,e:1080,label:"Work",cat:"work"},
@@ -244,7 +244,8 @@ var DEF_TEMPLATES={
     {s:0,e:360,label:"Sleep",cat:"sleep"},
     {s:360,e:375,label:"Meditation",cat:"health"},
     {s:375,e:420,label:"Prep",cat:"personal"},
-    {s:420,e:480,label:"Commute",cat:"commute"},
+    {s:420,e:465,label:"Commute",cat:"commute"},
+    {s:465,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
     {s:780,e:810,label:"Commute",cat:"commute"},
@@ -360,6 +361,12 @@ if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stri
 (function(){var changed=false;Object.keys(data.templates).forEach(function(k){var tpl=data.templates[k];if(!tpl||!tpl.length||k==='custom')return;var nonSleep=tpl.filter(function(b){return b.cat!=='sleep'});if(!nonSleep.length)return;var hasStartSleep=tpl.some(function(b){return b.cat==='sleep'&&b.s===0});var hasEndSleep=tpl.some(function(b){return b.cat==='sleep'&&b.e===1440});if(!hasStartSleep){var firstStart=Math.min.apply(null,nonSleep.map(function(b){return b.s}));if(firstStart>0){tpl.unshift({s:0,e:firstStart,label:"Sleep",cat:"sleep"});changed=true}}if(!hasEndSleep){var lastEnd=Math.max.apply(null,nonSleep.map(function(b){return b.e}));if(lastEnd<1440){tpl.push({s:lastEnd,e:1440,label:"Sleep",cat:"sleep"});changed=true}}tpl.sort(function(a,b){return a.s-b.s})});if(changed)sv()})();
 // Migrate: add BP reading to Sunday template if missing (v3.3)
 (function(){var s=data.templates&&data.templates.sunday;if(!s)return;if(s.some(function(b){return b.label==='BP reading'}))return;var readingBlk=s.filter(function(b){return b.label==='Reading'&&b.e===1275})[0];if(readingBlk){readingBlk.e=1260;s.push({s:1260,e:1275,label:"BP reading",cat:"health"});s.sort(function(a,b){return a.s-b.s});sv()}})();
+// Migrate: add breakfast block after morning commute in WIO templates (v3.4)
+(function(){var changed=false;['nw_wio','mum_wio'].forEach(function(k){var tpl=data.templates&&data.templates[k];if(!tpl)return;var commuteBlk=tpl.filter(function(b){return b.label==='Commute'&&b.s===420&&b.e===480})[0];if(!commuteBlk)return;var nextAt480=tpl.filter(function(b){return b.s===480})[0];if(nextAt480&&nextAt480.label==='Meal'&&(nextAt480.e-nextAt480.s)===15)return;if(nextAt480){nextAt480.s=495;tpl.push({s:480,e:495,label:"Meal",cat:"personal"});tpl.sort(function(a,b){return a.s-b.s});changed=true}});if(changed)sv()})();
+// Migrate: shift WIO breakfast to 7:45-8am, shorten morning commute to 45min (v3.5)
+(function(){var changed=false;['nw_wio','mum_wio'].forEach(function(k){var tpl=data.templates&&data.templates[k];if(!tpl)return;var commuteBlk=tpl.filter(function(b){return b.label==='Commute'&&b.s===420&&b.e===480})[0];var mealBlk=tpl.filter(function(b){return b.label==='Meal'&&b.s===480&&b.e===495})[0];var workBlk=tpl.filter(function(b){return b.label==='Work'&&b.s===495})[0];if(commuteBlk&&mealBlk&&workBlk){commuteBlk.e=465;mealBlk.s=465;mealBlk.e=480;workBlk.s=480;tpl.sort(function(a,b){return a.s-b.s});changed=true}});if(changed)sv()})();
+// Migrate: remove bp checklist item if still present (v3.5)
+(function(){if(!data.checklist)return;var before=data.checklist.length;data.checklist=data.checklist.filter(function(c){return c.id!=='bp'});if(data.checklist.length!==before){Object.keys(data.days||{}).forEach(function(d){if(data.days[d].checklist&&data.days[d].checklist.bp!==undefined){delete data.days[d].checklist.bp}});sv()}})();
 // Migrate old status values
 (function(){var changed=false;Object.keys(data.days).forEach(function(d){var dy=data.days[d];if(dy.blocks)dy.blocks.forEach(function(b){if(b.status==='done'){b.status='planned';changed=true}if(b.status==='skip'){b.status='skipped';changed=true}})});if(changed)sv()})();
 
@@ -840,7 +847,7 @@ function actSel(i,val){
 }
 function updBlk(i,field,val){
   var day=ensureDay(curDate);
-  if(field==='energy')val=parseInt(val);
+  if(field==='energy'){val=parseInt(val);if(day.blocks[i].energy===val)val=null}
   if(field==='status'){day.blocks[i].status=day.blocks[i].status===val?null:val}
   else{day.blocks[i][field]=val}
   var b=day.blocks[i];
