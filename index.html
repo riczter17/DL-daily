@@ -85,11 +85,16 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 .modal-btn.secondary{background:var(--bg);color:var(--txt);border:1px solid var(--bdr)}
 .modal-btn.ghost{background:transparent;color:var(--mut);font-weight:500}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="app"></div>
 <script>
-var VER="v3.5";
+const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+console.log('Supabase client initialised:', supabase ? 'OK' : 'FAILED');
+var VER="v4.0a";
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
