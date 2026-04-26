@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0b";
+var VER="v4.0c";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -974,13 +974,80 @@ function doExp(){var blob=new Blob([JSON.stringify(data,null,2)],{type:'applicat
 function doImp(ev){var file=ev.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){try{var d=JSON.parse(e.target.result);if(!d.days){alert("Invalid file.");return}if(!confirm("Import data? Replaces current."))return;data=d;sv();alert("Imported!");R()}catch(err){alert("Could not read file.")}};reader.readAsText(file)}
 function doReset(){if(!confirm("Reset all data? Cannot be undone."))return;localStorage.removeItem(KS);data={days:{},templates:JSON.parse(JSON.stringify(DEF_TEMPLATES)),checklist:CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}})};view="home";R()}
 
+async function loadDataFromDb(){
+  if(!authUser)return;
+  
+  // Fetch all data in parallel
+  var [daysRes,blocksRes,templatesRes,tmplBlocksRes,activitiesRes,checklistRes,dayChkRes]=await Promise.all([
+    db.from('days').select('*'),
+    db.from('blocks').select('*'),
+    db.from('templates').select('*'),
+    db.from('template_blocks').select('*'),
+    db.from('activities').select('*').eq('is_predefined',false),
+    db.from('checklist_items').select('*').order('order_index'),
+    db.from('day_checklist').select('*')
+  ]);
+  
+  // Check for errors
+  var errors=[daysRes.error,blocksRes.error,templatesRes.error,tmplBlocksRes.error,activitiesRes.error,checklistRes.error,dayChkRes.error].filter(function(e){return e});
+  if(errors.length){console.error('Load errors:',errors);return}
+  
+  // Build days object
+  var days={};
+  daysRes.data.forEach(function(d){
+    days[d.date]={dayType:d.day_type,customLabel:d.custom_label||'',notes:d.notes||'',morningEnergy:d.morning_energy,blocks:[],checklist:{}};
+  });
+  
+  // Attach blocks to their days
+  blocksRes.data.forEach(function(b){
+    if(!days[b.date])days[b.date]={dayType:null,customLabel:'',notes:'',morningEnergy:null,blocks:[],checklist:{}};
+    days[b.date].blocks.push({s:b.start_min,e:b.end_min,label:b.label||'',cat:b.category_id,energy:b.energy,status:b.status,note:b.note||''});
+  });
+  
+  // Attach checklist state to days
+  dayChkRes.data.forEach(function(c){
+    if(days[c.date])days[c.date].checklist[c.item_id]=c.checked;
+  });
+  
+  // Sort blocks within each day by start time
+  Object.keys(days).forEach(function(d){days[d].blocks.sort(function(a,b){return a.s-b.s})});
+  
+  // Build templates object
+  var templates={};
+  templatesRes.data.forEach(function(t){
+    templates[t.template_key]={_id:t.id,blocks:[]};
+  });
+  tmplBlocksRes.data.forEach(function(b){
+    var tpl=Object.values(templates).filter(function(t){return t._id===b.template_id})[0];
+    if(tpl)tpl.blocks.push({s:b.start_min,e:b.end_min,label:b.label||'',cat:b.category_id});
+  });
+  // Convert templates to flat block arrays (same shape as before)
+  var templatesFlat={};
+  Object.keys(templates).forEach(function(k){
+    templates[k].blocks.sort(function(a,b){return a.s-b.s});
+    templatesFlat[k]=templates[k].blocks;
+  });
+  
+  // Build customActivities array
+  var customActivities=activitiesRes.data.map(function(a){return{l:a.label,cat:a.category_id,grp:a.group_name}});
+  
+  // Build checklist definitions array
+  var checklist=checklistRes.data.map(function(c){return{id:c.item_id,l:c.label}});
+  
+  // Replace the global data object
+  data={days:days,templates:templatesFlat,customActivities:customActivities,checklist:checklist};
+}
+
 async function initApp(){
   var session=await db.auth.getSession();
   authUser=session.data.session?session.data.session.user:null;
+  if(authUser)await loadDataFromDb();
   R();
 }
-db.auth.onAuthStateChange(function(event,session){
+
+db.auth.onAuthStateChange(async function(event,session){
   authUser=session?session.user:null;
+  if(authUser)await loadDataFromDb();
   R();
 });
 initApp();
