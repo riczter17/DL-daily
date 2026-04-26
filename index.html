@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0c";
+var VER="v4.0d";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -866,10 +866,15 @@ function applyDayType(dtId,replaceTpl){
     day.blocks=tpl.map(function(b){return{s:b.s,e:b.e,label:b.label,cat:b.cat,energy:null,note:"",status:"planned",src:"tpl"}});
   }
   day.checklist=checklist;day.notes=notes;day.customLabel=cl;
-  openBlk=null;sv();R();
+  openBlk=null;
+  sv();
+  saveDayToDb(curDate);
+  R();
 }
-function setCustomLabel(v){var day=ensureDay(curDate);day.customLabel=v;sv()}
-function setMorningEnergy(v){var day=ensureDay(curDate);day.morningEnergy=v;sv();R()}
+//function setCustomLabel(v){var day=ensureDay(curDate);day.customLabel=v;sv()}
+function setCustomLabel(v){var day=ensureDay(curDate);day.customLabel=v;sv();saveDayToDb(curDate)}
+//function setMorningEnergy(v){var day=ensureDay(curDate);day.morningEnergy=v;sv();R()}
+function setMorningEnergy(v){var day=ensureDay(curDate);day.morningEnergy=v;sv();saveDayToDb(curDate);R()}
 function toggleCheck(id){var day=ensureDay(curDate);day.checklist[id]=!day.checklist[id];sv();R()}
 function actSel(i,val){
   var day=ensureDay(curDate);
@@ -912,7 +917,8 @@ function sortBlocksByTime(){
   day.blocks.sort(function(a,b){return a.s-b.s});
   openBlk=null;sv();R();
 }
-function updDayNote(v){var day=ensureDay(curDate);day.notes=v;sv()}
+//function updDayNote(v){var day=ensureDay(curDate);day.notes=v;sv()}
+function updDayNote(v){var day=ensureDay(curDate);day.notes=v;sv();saveDayToDb(curDate)}
 function openTimePicker(idx,field){pickerTarget=true;pickerBlkIdx=idx;pickerField=field;R()}
 function pickH(h){
   var b=ensureDay(curDate).blocks[pickerBlkIdx];
@@ -973,6 +979,22 @@ function clReset(){if(!confirm("Reset checklist to default items?"))return;data.
 function doExp(){var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='daily-os-'+todayStr()+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url)}
 function doImp(ev){var file=ev.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){try{var d=JSON.parse(e.target.result);if(!d.days){alert("Invalid file.");return}if(!confirm("Import data? Replaces current."))return;data=d;sv();alert("Imported!");R()}catch(err){alert("Could not read file.")}};reader.readAsText(file)}
 function doReset(){if(!confirm("Reset all data? Cannot be undone."))return;localStorage.removeItem(KS);data={days:{},templates:JSON.parse(JSON.stringify(DEF_TEMPLATES)),checklist:CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}})};view="home";R()}
+
+async function saveDayToDb(date){
+  if(!authUser||!data.days[date])return;
+  var d=data.days[date];
+  var payload={
+    user_id:authUser.id,
+    date:date,
+    day_type:d.dayType,
+    custom_label:d.customLabel||null,
+    notes:d.notes||null,
+    morning_energy:d.morningEnergy,
+    updated_at:new Date().toISOString()
+  };
+  var result=await db.from('days').upsert(payload,{onConflict:'user_id,date'});
+  if(result.error)console.error('saveDayToDb error:',result.error);
+}
 
 async function loadDataFromDb(){
   if(!authUser)return;
