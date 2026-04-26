@@ -94,7 +94,8 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0a";
+var VER="v4.0b";
+var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
   {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
@@ -385,6 +386,7 @@ function getDay(d){return data.days[d]||null}
 function ensureDay(d){if(!data.days[d])data.days[d]={dayType:null,blocks:[],checklist:{},notes:"",customLabel:"",morningEnergy:null};return data.days[d]}
 
 function R(){
+  if(!authUser)return rLogin();
   if(pickerTarget)return rPicker();
   if(tplPicker)return rTplPicker();
   if(view==="home")rHome();
@@ -393,6 +395,34 @@ function R(){
   else if(view==="templates")rTemplates();
   else if(view==="checklist_edit")rChecklistEdit();
   else if(view==="my_activities")rMyActivities();
+}
+
+function rLogin(){
+  var h='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F510}</div><h1>Daily OS</h1><p>Sign in to continue</p></div>';
+  h+='<div class="card">';
+  h+='<label class="lbl">Email</label>';
+  h+='<input class="fld" id="loginEmail" type="email" placeholder="your@email.com" autocomplete="email">';
+  h+='<button class="btn ba mt12" onclick="sendMagicLink()">Send Magic Link</button>';
+  h+='<p id="loginMsg" style="font-size:12px;color:var(--mut);margin-top:12px;text-align:center"></p>';
+  h+='</div>';
+  $.innerHTML=h;
+}
+
+async function sendMagicLink(){
+  var email=document.getElementById('loginEmail').value.trim();
+  var msgEl=document.getElementById('loginMsg');
+  if(!email){msgEl.textContent='Enter your email first.';msgEl.style.color='var(--red)';return}
+  msgEl.textContent='Sending...';
+  msgEl.style.color='var(--mut)';
+  try{
+    var result=await db.auth.signInWithOtp({email:email,options:{emailRedirectTo:window.location.origin}});
+    if(result.error)throw result.error;
+    msgEl.textContent='Check your email for the login link.';
+    msgEl.style.color='var(--grn)';
+  }catch(err){
+    msgEl.textContent='Error: '+err.message;
+    msgEl.style.color='var(--red)';
+  }
 }
 
 function rHome(){
@@ -944,7 +974,16 @@ function doExp(){var blob=new Blob([JSON.stringify(data,null,2)],{type:'applicat
 function doImp(ev){var file=ev.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){try{var d=JSON.parse(e.target.result);if(!d.days){alert("Invalid file.");return}if(!confirm("Import data? Replaces current."))return;data=d;sv();alert("Imported!");R()}catch(err){alert("Could not read file.")}};reader.readAsText(file)}
 function doReset(){if(!confirm("Reset all data? Cannot be undone."))return;localStorage.removeItem(KS);data={days:{},templates:JSON.parse(JSON.stringify(DEF_TEMPLATES)),checklist:CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}})};view="home";R()}
 
-R();
+async function initApp(){
+  var session=await db.auth.getSession();
+  authUser=session.data.session?session.data.session.user:null;
+  R();
+}
+db.auth.onAuthStateChange(function(event,session){
+  authUser=session?session.user:null;
+  R();
+});
+initApp();
 </script>
 </body>
 </html>
