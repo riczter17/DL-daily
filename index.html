@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0i";
+var VER="v4.0j";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1239,7 +1239,11 @@ db.auth.onAuthStateChange(async function(event,session){
   if(authUser)await loadDataFromDb();
   R();
 });
-initApp();
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',initApp);
+}else{
+  initApp();
+}
 </script>
 </body>
 </html>
