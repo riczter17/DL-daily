@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0j";
+var VER="v4.0k";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1227,7 +1227,10 @@ async function loadDataFromDb(){
   data={days:days,templates:templatesFlat,customActivities:customActivities,checklist:checklist};
 }
 
+var appInitialised=false;
 async function initApp(){
+  if(appInitialised)return;
+  appInitialised=true;
   var session=await db.auth.getSession();
   authUser=session.data.session?session.data.session.user:null;
   if(authUser)await loadDataFromDb();
@@ -1235,6 +1238,8 @@ async function initApp(){
 }
 
 db.auth.onAuthStateChange(async function(event,session){
+  // Skip the INITIAL_SESSION event since initApp handles it
+  if(event==='INITIAL_SESSION'&&appInitialised)return;
   authUser=session?session.user:null;
   if(authUser)await loadDataFromDb();
   R();
