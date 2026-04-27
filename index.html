@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0f";
+var VER="v4.0g";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -915,8 +915,14 @@ function updBlk(i,field,val){
   if((field==='cat'||field==='label')&&b.label&&!ACTIVITIES.some(function(a){return a.l===b.label})){
     var existingIdx=-1;
     for(var k=0;k<data.customActivities.length;k++){if(data.customActivities[k].l===b.label){existingIdx=k;break}}
-    if(existingIdx>=0){data.customActivities[existingIdx].cat=b.cat;}
-    else{data.customActivities.push({l:b.label,cat:b.cat,grp:"My Activities"});}
+    if(existingIdx>=0){
+      data.customActivities[existingIdx].cat=b.cat;
+      updateCustomActivityInDb(data.customActivities[existingIdx]);
+    }else{
+      var newAct={l:b.label,cat:b.cat,grp:"My Activities"};
+      data.customActivities.push(newAct);
+      insertCustomActivityToDb(newAct);
+    }
   }
   sv();
   updateBlockInDb(b);
@@ -924,7 +930,9 @@ function updBlk(i,field,val){
 }
 function delCustomActivity(label){
   if(!confirm('Remove "'+label+'" from My Activities? Existing blocks with this label keep their category.'))return;
+  var toDelete=data.customActivities.filter(function(a){return a.l===label})[0];
   data.customActivities=data.customActivities.filter(function(a){return a.l!==label});
+  if(toDelete&&toDelete._id)deleteCustomActivityFromDb(toDelete._id);
   sv();R();
 }
 function delBlk(i){
@@ -1083,6 +1091,38 @@ async function saveDayChecklistToDb(date,itemId,checked){
   if(result.error)console.error('saveDayChecklistToDb error:',result.error);
 }
 
+async function insertCustomActivityToDb(localActivity){
+  if(!authUser)return;
+  var payload={
+    label:localActivity.l,
+    category_id:localActivity.cat,
+    is_predefined:false,
+    user_id:authUser.id,
+    group_name:localActivity.grp||'My Activities',
+    is_active:true
+  };
+  var result=await db.from('activities').insert(payload).select().single();
+  if(result.error){console.error('insertCustomActivityToDb error:',result.error);return}
+  localActivity._id=result.data.id;
+}
+
+async function updateCustomActivityInDb(localActivity){
+  if(!authUser||!localActivity._id)return;
+  var payload={
+    category_id:localActivity.cat,
+    group_name:localActivity.grp||'My Activities'
+  };
+  var result=await db.from('activities').update(payload).eq('id',localActivity._id);
+  if(result.error)console.error('updateCustomActivityInDb error:',result.error);
+}
+
+async function deleteCustomActivityFromDb(activityId){
+  if(!authUser||!activityId)return;
+  // Soft delete: set is_active to false
+  var result=await db.from('activities').update({is_active:false}).eq('id',activityId);
+  if(result.error)console.error('deleteCustomActivityFromDb error:',result.error);
+}
+
 async function loadDataFromDb(){
   if(!authUser)return;
   
@@ -1137,8 +1177,8 @@ async function loadDataFromDb(){
     templatesFlat[k]=templates[k].blocks;
   });
   
-  // Build customActivities array
-  var customActivities=activitiesRes.data.map(function(a){return{l:a.label,cat:a.category_id,grp:a.group_name}});
+  // Build customActivities array (only active ones)
+  var customActivities=activitiesRes.data.filter(function(a){return a.is_active!==false}).map(function(a){return{_id:a.id,l:a.label,cat:a.category_id,grp:a.group_name}});
   
   // Build checklist definitions array
   var checklist=checklistRes.data.map(function(c){return{id:c.item_id,l:c.label}});
