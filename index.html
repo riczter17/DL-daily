@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0d";
+var VER="v4.0e";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -857,19 +857,32 @@ function closeDTModal(){var m=document.getElementById('dt-modal');if(m)m.remove(
 function dtRetain(){closeDTModal();if(!pendingDT)return;var day=ensureDay(curDate);day.dayType=pendingDT;pendingDT=null;openBlk=null;sv();R()}
 function dtReplace(){closeDTModal();if(!pendingDT)return;applyDayType(pendingDT,true);pendingDT=null}
 function dtCancel(){closeDTModal();pendingDT=null}
-function applyDayType(dtId,replaceTpl){
+async function applyDayType(dtId,replaceTpl){
   var day=ensureDay(curDate);
   var checklist=day.checklist||{};var notes=day.notes||"";var cl=day.customLabel||"";
   day.dayType=dtId;
   if(replaceTpl||!day.blocks.length){
+    // Delete old blocks from Supabase first
+    var oldIds=day.blocks.map(function(b){return b._id}).filter(function(id){return id});
     var tpl=data.templates[dtId]||[];
     day.blocks=tpl.map(function(b){return{s:b.s,e:b.e,label:b.label,cat:b.cat,energy:null,note:"",status:"planned",src:"tpl"}});
+    day.checklist=checklist;day.notes=notes;day.customLabel=cl;
+    openBlk=null;
+    sv();
+    saveDayToDb(curDate);
+    R();
+    // Async cleanup and inserts: delete old blocks, then insert new blocks
+    if(authUser){
+      for(var i=0;i<oldIds.length;i++){await deleteBlockFromDb(oldIds[i])}
+      for(var j=0;j<day.blocks.length;j++){await insertBlockToDb(curDate,day.blocks[j])}
+    }
+  }else{
+    day.checklist=checklist;day.notes=notes;day.customLabel=cl;
+    openBlk=null;
+    sv();
+    saveDayToDb(curDate);
+    R();
   }
-  day.checklist=checklist;day.notes=notes;day.customLabel=cl;
-  openBlk=null;
-  sv();
-  saveDayToDb(curDate);
-  R();
 }
 //function setCustomLabel(v){var day=ensureDay(curDate);day.customLabel=v;sv()}
 function setCustomLabel(v){var day=ensureDay(curDate);day.customLabel=v;sv();saveDayToDb(curDate)}
@@ -879,11 +892,13 @@ function toggleCheck(id){var day=ensureDay(curDate);day.checklist[id]=!day.check
 function actSel(i,val){
   var day=ensureDay(curDate);
   if(!val)return;
-  if(val==="_custom"){day.blocks[i].label="";sv();R();return}
+  if(val==="_custom"){day.blocks[i].label="";sv();updateBlockInDb(day.blocks[i]);R();return}
   var act=gAct(val);
   day.blocks[i].label=val;
   if(act)day.blocks[i].cat=act.cat;
-  sv();R();
+  sv();
+  updateBlockInDb(day.blocks[i]);
+  R();
 }
 function updBlk(i,field,val){
   var day=ensureDay(curDate);
@@ -891,26 +906,39 @@ function updBlk(i,field,val){
   if(field==='status'){day.blocks[i].status=day.blocks[i].status===val?null:val}
   else{day.blocks[i][field]=val}
   var b=day.blocks[i];
-  // Auto-register or update custom activity when label/cat is set and label isn't predefined
   if((field==='cat'||field==='label')&&b.label&&!ACTIVITIES.some(function(a){return a.l===b.label})){
     var existingIdx=-1;
     for(var k=0;k<data.customActivities.length;k++){if(data.customActivities[k].l===b.label){existingIdx=k;break}}
     if(existingIdx>=0){data.customActivities[existingIdx].cat=b.cat;}
     else{data.customActivities.push({l:b.label,cat:b.cat,grp:"My Activities"});}
   }
-  sv();if(field==='cat'||field==='energy'||field==='status'||field==='label')R();
+  sv();
+  updateBlockInDb(b);
+  if(field==='cat'||field==='energy'||field==='status'||field==='label')R();
 }
 function delCustomActivity(label){
   if(!confirm('Remove "'+label+'" from My Activities? Existing blocks with this label keep their category.'))return;
   data.customActivities=data.customActivities.filter(function(a){return a.l!==label});
   sv();R();
 }
-function delBlk(i){var day=ensureDay(curDate);day.blocks.splice(i,1);openBlk=null;sv();R()}
+function delBlk(i){
+  var day=ensureDay(curDate);
+  var blockId=day.blocks[i]._id;
+  day.blocks.splice(i,1);
+  openBlk=null;
+  sv();
+  if(blockId)deleteBlockFromDb(blockId);
+  R();
+}
 function addBlk(){
   var day=ensureDay(curDate);
   var last=day.blocks.length>0?day.blocks[day.blocks.length-1].e:480;
-  day.blocks.push({s:last,e:Math.min(last+60,1440),label:"",cat:"personal",energy:null,note:"",status:"unplanned"});
-  openBlk=day.blocks.length-1;sv();R();
+  var newBlock={s:last,e:Math.min(last+60,1440),label:"",cat:"personal",energy:null,note:"",status:"unplanned"};
+  day.blocks.push(newBlock);
+  openBlk=day.blocks.length-1;
+  sv();
+  insertBlockToDb(curDate,newBlock);
+  R();
 }
 function sortBlocksByTime(){
   var day=ensureDay(curDate);
@@ -996,6 +1024,46 @@ async function saveDayToDb(date){
   if(result.error)console.error('saveDayToDb error:',result.error);
 }
 
+async function insertBlockToDb(date,localBlock){
+  if(!authUser)return;
+  var payload={
+    user_id:authUser.id,
+    date:date,
+    start_min:localBlock.s,
+    end_min:localBlock.e,
+    label:localBlock.label||null,
+    category_id:localBlock.cat,
+    energy:localBlock.energy||null,
+    status:localBlock.status||null,
+    note:localBlock.note||null
+  };
+  var result=await db.from('blocks').insert(payload).select().single();
+  if(result.error){console.error('insertBlockToDb error:',result.error);return}
+  localBlock._id=result.data.id;
+}
+
+async function updateBlockInDb(localBlock){
+  if(!authUser||!localBlock._id)return;
+  var payload={
+    start_min:localBlock.s,
+    end_min:localBlock.e,
+    label:localBlock.label||null,
+    category_id:localBlock.cat,
+    energy:localBlock.energy||null,
+    status:localBlock.status||null,
+    note:localBlock.note||null,
+    updated_at:new Date().toISOString()
+  };
+  var result=await db.from('blocks').update(payload).eq('id',localBlock._id);
+  if(result.error)console.error('updateBlockInDb error:',result.error);
+}
+
+async function deleteBlockFromDb(blockId){
+  if(!authUser||!blockId)return;
+  var result=await db.from('blocks').delete().eq('id',blockId);
+  if(result.error)console.error('deleteBlockFromDb error:',result.error);
+}
+
 async function loadDataFromDb(){
   if(!authUser)return;
   
@@ -1023,7 +1091,7 @@ async function loadDataFromDb(){
   // Attach blocks to their days
   blocksRes.data.forEach(function(b){
     if(!days[b.date])days[b.date]={dayType:null,customLabel:'',notes:'',morningEnergy:null,blocks:[],checklist:{}};
-    days[b.date].blocks.push({s:b.start_min,e:b.end_min,label:b.label||'',cat:b.category_id,energy:b.energy,status:b.status,note:b.note||''});
+    days[b.date].blocks.push({_id:b.id,s:b.start_min,e:b.end_min,label:b.label||'',cat:b.category_id,energy:b.energy,status:b.status,note:b.note||''});
   });
   
   // Attach checklist state to days
