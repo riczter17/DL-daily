@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0g";
+var VER="v4.0h";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -977,34 +977,34 @@ function pickM(m){
 function tplActSel(i,val){
   var tpl=data.templates[editTpl];
   if(!val)return;
-  if(val==="_custom"){tpl[i].label="";sv();R();return}
+  if(val==="_custom"){tpl[i].label="";sv();saveTemplateToDb(editTpl);R();return}
   var act=gAct(val);
   tpl[i].label=val;
   if(act)tpl[i].cat=act.cat;
-  sv();R();
+  sv();saveTemplateToDb(editTpl);R();
 }
-function delTplBlk(dtId,i){data.templates[dtId].splice(i,1);editTplBlk=null;sv();R()}
-function updTplBlk(i,field,val){data.templates[editTpl][i][field]=val;sv();if(field==='cat')R()}
+function delTplBlk(dtId,i){data.templates[dtId].splice(i,1);editTplBlk=null;sv();saveTemplateToDb(dtId);R()}
+function updTplBlk(i,field,val){data.templates[editTpl][i][field]=val;sv();saveTemplateToDb(editTpl);if(field==='cat')R()}
 function addTplBlk(){
   var tpl=data.templates[editTpl];
   var last=tpl.length>0?tpl[tpl.length-1].e:480;
   tpl.push({s:last,e:Math.min(last+60,1440),label:"",cat:"personal"});
-  editTplBlk=tpl.length-1;sv();R();
+  editTplBlk=tpl.length-1;sv();saveTemplateToDb(editTpl);R();
 }
 function sortTplByTime(){
   data.templates[editTpl].sort(function(a,b){return a.s-b.s});
-  editTplBlk=null;sv();R();
+  editTplBlk=null;sv();saveTemplateToDb(editTpl);R();
 }
 function openTplPicker(idx,field){tplPicker={idx:idx,field:field};R()}
 function tplPickH(h){
   var tpl=data.templates[editTpl];var b=tpl[tplPicker.idx];
-  if(h===24){b[tplPicker.field]=1440;sv();R();return}
-  var m=b[tplPicker.field]%60;b[tplPicker.field]=h*60+m;sv();R();
+  if(h===24){b[tplPicker.field]=1440;sv();saveTemplateToDb(editTpl);R();return}
+  var m=b[tplPicker.field]%60;b[tplPicker.field]=h*60+m;sv();saveTemplateToDb(editTpl);R();
 }
 function tplPickM(m){
   var tpl=data.templates[editTpl];var b=tpl[tplPicker.idx];
   if(Math.floor(b[tplPicker.field]/60)===24)return;
-  var hh=Math.floor(b[tplPicker.field]/60);b[tplPicker.field]=hh*60+m;sv();R();
+  var hh=Math.floor(b[tplPicker.field]/60);b[tplPicker.field]=hh*60+m;sv();saveTemplateToDb(editTpl);R();
 }
 function resetTemplates(){
   if(!confirm("Reset all templates to default?"))return;
@@ -1121,6 +1121,34 @@ async function deleteCustomActivityFromDb(activityId){
   // Soft delete: set is_active to false
   var result=await db.from('activities').update({is_active:false}).eq('id',activityId);
   if(result.error)console.error('deleteCustomActivityFromDb error:',result.error);
+}
+
+async function saveTemplateToDb(templateKey){
+  if(!authUser||!data.templates[templateKey])return;
+  var blocks=data.templates[templateKey];
+  // Find or create the template row
+  var tplRes=await db.from('templates').select('id').eq('user_id',authUser.id).eq('template_key',templateKey).maybeSingle();
+  if(tplRes.error){console.error('saveTemplateToDb find error:',tplRes.error);return}
+  var templateId;
+  if(tplRes.data){
+    templateId=tplRes.data.id;
+    // Delete existing blocks
+    var delRes=await db.from('template_blocks').delete().eq('template_id',templateId);
+    if(delRes.error){console.error('saveTemplateToDb delete error:',delRes.error);return}
+    // Update the template's updated_at
+    await db.from('templates').update({updated_at:new Date().toISOString()}).eq('id',templateId);
+  }else{
+    // Create new template row
+    var insRes=await db.from('templates').insert({user_id:authUser.id,template_key:templateKey}).select().single();
+    if(insRes.error){console.error('saveTemplateToDb insert error:',insRes.error);return}
+    templateId=insRes.data.id;
+  }
+  // Insert all blocks
+  if(blocks.length>0){
+    var blockRows=blocks.map(function(b,idx){return{template_id:templateId,start_min:b.s,end_min:b.e,label:b.label||null,category_id:b.cat,order_index:idx+1}});
+    var blkRes=await db.from('template_blocks').insert(blockRows);
+    if(blkRes.error)console.error('saveTemplateToDb blocks insert error:',blkRes.error);
+  }
 }
 
 async function loadDataFromDb(){
