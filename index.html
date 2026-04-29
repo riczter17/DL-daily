@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0l";
+var VER="v4.0m";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1228,62 +1228,52 @@ async function loadDataFromDb(){
 }
 
 var appInitialised=false;
-async function initApp(){
-  if(appInitialised)return;
-  appInitialised=true;
-  console.log('[initApp] Starting');
-  try{
-    var session=await db.auth.getSession();
-    authUser=session.data.session?session.data.session.user:null;
-    console.log('[initApp] Auth resolved, user:',authUser?authUser.email:'none');
-    if(authUser){
-      try{
-        await loadDataFromDb();
-        console.log('[initApp] Data loaded');
-      }catch(loadErr){
-        console.error('[initApp] loadDataFromDb failed:',loadErr);
-      }
+var initialAuthHandled=false;
+
+async function handleAuthState(session){
+  authUser=session?session.user:null;
+  if(authUser){
+    try{
+      await loadDataFromDb();
+    }catch(loadErr){
+      console.error('[handleAuthState] loadDataFromDb failed:',loadErr);
     }
-  }catch(err){
-    console.error('[initApp] Auth failed:',err);
-    authUser=null;
   }
-  console.log('[initApp] Calling R()');
   try{
     R();
-    console.log('[initApp] R() complete, body length:',$.innerHTML.length);
+    console.log('[handleAuthState] R() complete, body length:',$.innerHTML.length);
   }catch(rErr){
-    console.error('[initApp] R() threw:',rErr);
-    // Fallback: try once more after a delay
-    setTimeout(function(){
-      try{R();console.log('[initApp] Retry R() complete')}catch(e){console.error('[initApp] Retry failed:',e)}
-    },100);
+    console.error('[handleAuthState] R() threw:',rErr);
+    setTimeout(function(){try{R()}catch(e){console.error('[handleAuthState] Retry failed:',e)}},100);
   }
 }
 
 db.auth.onAuthStateChange(async function(event,session){
   console.log('[onAuthStateChange] event:',event);
-  // Skip the INITIAL_SESSION event since initApp handles it
-  if(event==='INITIAL_SESSION'&&appInitialised)return;
-  authUser=session?session.user:null;
-  if(authUser){
-    try{await loadDataFromDb();}catch(err){console.error('[onAuthStateChange] loadDataFromDb failed:',err)}
-  }
-  try{R();}catch(err){console.error('[onAuthStateChange] R() threw:',err)}
+  // Mark initial handled on first event
+  if(event==='INITIAL_SESSION')initialAuthHandled=true;
+  await handleAuthState(session);
 });
+
 function startApp(){
-  // Ensure app div exists before init
   if(!document.getElementById('app')){
     console.warn('[startApp] #app not found, retrying');
     setTimeout(startApp,50);
     return;
   }
-  initApp();
+  console.log('[startApp] Ready');
+  // Fallback: if INITIAL_SESSION never fires within 2 seconds, render login
+  setTimeout(function(){
+    if(!initialAuthHandled){
+      console.warn('[startApp] No auth event after 2s, rendering anyway');
+      handleAuthState(null);
+    }
+  },2000);
 }
+
 if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',startApp);
 }else{
-  // Already loaded - small delay to let any pending session restoration complete
   setTimeout(startApp,0);
 }
 </script>
