@@ -94,7 +94,7 @@ const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0k";
+var VER="v4.0l";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1231,23 +1231,60 @@ var appInitialised=false;
 async function initApp(){
   if(appInitialised)return;
   appInitialised=true;
-  var session=await db.auth.getSession();
-  authUser=session.data.session?session.data.session.user:null;
-  if(authUser)await loadDataFromDb();
-  R();
+  console.log('[initApp] Starting');
+  try{
+    var session=await db.auth.getSession();
+    authUser=session.data.session?session.data.session.user:null;
+    console.log('[initApp] Auth resolved, user:',authUser?authUser.email:'none');
+    if(authUser){
+      try{
+        await loadDataFromDb();
+        console.log('[initApp] Data loaded');
+      }catch(loadErr){
+        console.error('[initApp] loadDataFromDb failed:',loadErr);
+      }
+    }
+  }catch(err){
+    console.error('[initApp] Auth failed:',err);
+    authUser=null;
+  }
+  console.log('[initApp] Calling R()');
+  try{
+    R();
+    console.log('[initApp] R() complete, body length:',$.innerHTML.length);
+  }catch(rErr){
+    console.error('[initApp] R() threw:',rErr);
+    // Fallback: try once more after a delay
+    setTimeout(function(){
+      try{R();console.log('[initApp] Retry R() complete')}catch(e){console.error('[initApp] Retry failed:',e)}
+    },100);
+  }
 }
 
 db.auth.onAuthStateChange(async function(event,session){
+  console.log('[onAuthStateChange] event:',event);
   // Skip the INITIAL_SESSION event since initApp handles it
   if(event==='INITIAL_SESSION'&&appInitialised)return;
   authUser=session?session.user:null;
-  if(authUser)await loadDataFromDb();
-  R();
+  if(authUser){
+    try{await loadDataFromDb();}catch(err){console.error('[onAuthStateChange] loadDataFromDb failed:',err)}
+  }
+  try{R();}catch(err){console.error('[onAuthStateChange] R() threw:',err)}
 });
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',initApp);
-}else{
+function startApp(){
+  // Ensure app div exists before init
+  if(!document.getElementById('app')){
+    console.warn('[startApp] #app not found, retrying');
+    setTimeout(startApp,50);
+    return;
+  }
   initApp();
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',startApp);
+}else{
+  // Already loaded - small delay to let any pending session restoration complete
+  setTimeout(startApp,0);
 }
 </script>
 </body>
