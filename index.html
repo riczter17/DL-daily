@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0o";
+var VER="v4.0p";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1236,23 +1236,24 @@ var initialAuthHandled=false;
 
 async function handleAuthState(session){
   authUser=session?session.user:null;
-  if(authUser){
-    try{
-      await loadDataFromDb();
-    }catch(loadErr){
-      console.error('[handleAuthState] loadDataFromDb failed:',loadErr);
-    }
-  }
-  // Defer render to next animation frame to ensure DOM is paint-ready
+  // Render immediately with current state (login screen if no auth, empty if logged in)
   requestAnimationFrame(function(){
-    try{
-      R();
-      console.log('[handleAuthState] R() complete, body length:',$.innerHTML.length);
-    }catch(rErr){
-      console.error('[handleAuthState] R() threw:',rErr);
-      setTimeout(function(){try{R()}catch(e){console.error('[handleAuthState] Retry failed:',e)}},100);
-    }
+    try{R();}catch(rErr){console.error('[handleAuthState] R() threw:',rErr)}
   });
+  // Then fetch data separately after letting the library settle
+  if(authUser){
+    setTimeout(async function(){
+      try{
+        await loadDataFromDb();
+        console.log('[handleAuthState] Data loaded');
+        requestAnimationFrame(function(){
+          try{R();console.log('[handleAuthState] R() complete, body length:',$.innerHTML.length)}catch(e){console.error('[handleAuthState] R() threw:',e)}
+        });
+      }catch(loadErr){
+        console.error('[handleAuthState] loadDataFromDb failed:',loadErr);
+      }
+    },200);
+  }
 }
 
 db.auth.onAuthStateChange(async function(event,session){
