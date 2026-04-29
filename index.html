@@ -92,9 +92,13 @@ select.grp optgroup{color:var(--acc);font-weight:700;font-style:normal;backgroun
 <script>
 const SUPABASE_URL = 'https://xdxbieklnbyztatmsgqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkeGJpZWtsbmJ5enRhdG1zZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTI0NTYsImV4cCI6MjA5MjQyODQ1Nn0.PncrKGgUXgALy3oGhFjnkDJfqT7vvNLdTbUlCJ04DOk';
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    lock: function(name, acquireTimeout, fn){ return fn(); }
+  }
+});
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0m";
+var VER="v4.0n";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1250,8 +1254,8 @@ async function handleAuthState(session){
 
 db.auth.onAuthStateChange(async function(event,session){
   console.log('[onAuthStateChange] event:',event);
-  // Mark initial handled on first event
-  if(event==='INITIAL_SESSION')initialAuthHandled=true;
+  // Any auth event counts as the initial signal, not just INITIAL_SESSION
+  initialAuthHandled=true;
   await handleAuthState(session);
 });
 
