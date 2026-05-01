@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0p";
+var VER="v4.0q";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -968,13 +968,13 @@ function updDayNote(v){var day=ensureDay(curDate);day.notes=v;sv();saveDayToDb(c
 function openTimePicker(idx,field){pickerTarget=true;pickerBlkIdx=idx;pickerField=field;R()}
 function pickH(h){
   var b=ensureDay(curDate).blocks[pickerBlkIdx];
-  if(h===24){b[pickerField]=1440;sv();R();return}
-  var m=b[pickerField]%60;b[pickerField]=h*60+m;sv();R();
+  if(h===24){b[pickerField]=1440;sv();updateBlockInDb(b);R();return}
+  var m=b[pickerField]%60;b[pickerField]=h*60+m;sv();updateBlockInDb(b);R();
 }
 function pickM(m){
   var b=ensureDay(curDate).blocks[pickerBlkIdx];
   if(Math.floor(b[pickerField]/60)===24)return;
-  var hh=Math.floor(b[pickerField]/60);b[pickerField]=hh*60+m;sv();R();
+  var hh=Math.floor(b[pickerField]/60);b[pickerField]=hh*60+m;sv();updateBlockInDb(b);R();
 }
 
 // Template actions
