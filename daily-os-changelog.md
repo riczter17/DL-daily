@@ -1,5 +1,19 @@
 # Daily OS Changelog
 
+## v4.0v (2 May 2026)
+
+### Saturday Template Update
+Saturday template reworked to match the day's stated theme (Wife/Health + Parents):
+- Couples workout shifted to 8:45am-10:15am (1.5h, accommodates wife's preferred timing)
+- Pre-workout: 30 min Prep + 1 hour Chores (Saturday's main household chores window)
+- Post-workout: Breakfast / Rest with wife block (10:15am-12pm)
+- Afternoon: Lunch + 30 min Rest + 30 min Commute to parents
+- 2pm-9pm: single bundled Parents / Family time block (7h, internal sequence not separately tracked)
+- 9-9:30pm Commute home
+- 9:30-10:15pm Wind down (includes night prep + gratitude)
+- Reading block removed (per theme: focus is workout/wife + parents + rest)
+- 13 blocks total (down from 16)
+
 ## v4.0u (2 May 2026)
 
 ### Goal-Aligned Templates
