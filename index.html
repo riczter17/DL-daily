@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0q";
+var VER="v4.0r";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1229,6 +1229,40 @@ async function loadDataFromDb(){
   
   // Replace the global data object
   data={days:days,templates:templatesFlat,customActivities:customActivities,checklist:checklist};
+  // Update local cache
+  try{sv()}catch(e){console.warn('[loadDataFromDb] Cache save failed:',e)}
+}
+
+// Realtime sync: subscribe to changes from other devices
+var realtimeChannel=null;
+var realtimeReloadTimer=null;
+function setupRealtimeSync(){
+  if(realtimeChannel||!authUser)return;
+  console.log('[realtime] Setting up subscription');
+  realtimeChannel=db.channel('user-data-'+authUser.id)
+    .on('postgres_changes',{event:'*',schema:'public',table:'days',filter:'user_id=eq.'+authUser.id},triggerReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'blocks',filter:'user_id=eq.'+authUser.id},triggerReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'day_checklist',filter:'user_id=eq.'+authUser.id},triggerReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'checklist_items',filter:'user_id=eq.'+authUser.id},triggerReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'user_id=eq.'+authUser.id},triggerReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'templates',filter:'user_id=eq.'+authUser.id},triggerReload)
+    .subscribe(function(status){console.log('[realtime] Status:',status)});
+}
+
+// Debounced reload triggered by realtime events
+function triggerReload(payload){
+  console.log('[realtime] Change detected:',payload.table,payload.eventType);
+  if(realtimeReloadTimer)clearTimeout(realtimeReloadTimer);
+  realtimeReloadTimer=setTimeout(async function(){
+    try{
+      await loadDataFromDb();
+      requestAnimationFrame(function(){
+        try{R();console.log('[realtime] Reloaded and re-rendered')}catch(e){console.error('[realtime] R() threw:',e)}
+      });
+    }catch(err){
+      console.error('[realtime] Reload failed:',err);
+    }
+  },500); // 500ms debounce - batch multiple changes together
 }
 
 var appInitialised=false;
@@ -1236,19 +1270,29 @@ var initialAuthHandled=false;
 
 async function handleAuthState(session){
   authUser=session?session.user:null;
-  // Render immediately with current state (login screen if no auth, empty if logged in)
+  // If logged in and we have a cached data object, render from cache immediately for instant UI
+  if(authUser){
+    var cached=ld();
+    if(cached&&cached.days){
+      data=cached;
+      console.log('[handleAuthState] Rendered from cache');
+    }
+  }
+  // Render immediately with current state (login screen if no auth, cache if logged in, empty otherwise)
   requestAnimationFrame(function(){
     try{R();}catch(rErr){console.error('[handleAuthState] R() threw:',rErr)}
   });
-  // Then fetch data separately after letting the library settle
+  // Then fetch fresh data from Supabase in the background
   if(authUser){
     setTimeout(async function(){
       try{
         await loadDataFromDb();
-        console.log('[handleAuthState] Data loaded');
+        console.log('[handleAuthState] Fresh data loaded');
         requestAnimationFrame(function(){
           try{R();console.log('[handleAuthState] R() complete, body length:',$.innerHTML.length)}catch(e){console.error('[handleAuthState] R() threw:',e)}
         });
+        // Set up realtime subscriptions after first successful load
+        setupRealtimeSync();
       }catch(loadErr){
         console.error('[handleAuthState] loadDataFromDb failed:',loadErr);
       }
