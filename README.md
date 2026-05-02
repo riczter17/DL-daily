@@ -1,1 +1,1 @@
-https://riczter17.github.io/DL-daily/
+https://dl-daily.vercel.app/
