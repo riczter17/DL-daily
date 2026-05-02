@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0t";
+var VER="v4.0u";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -114,9 +114,9 @@ var CATS=[
 function gC(id){for(var i=0;i<CATS.length;i++)if(CATS[i].id===id)return CATS[i];return null}
 
 var DTYPES=[
-  {id:"nw_wio",l:"Non-workout WIO",c:"#60a5fa",short:"NW-WIO"},
-  {id:"nw_wfh",l:"Non-workout WFH",c:"#a78bfa",short:"NW-WFH"},
-  {id:"w_wfh",l:"Workout WFH",c:"#34d399",short:"W-WFH"},
+  {id:"nw_wio",l:"WIO",c:"#60a5fa",short:"WIO"},
+  {id:"nw_wfh",l:"WFH",c:"#a78bfa",short:"WFH"},
+  {id:"nw_wfh_w",l:"WFH with wife",c:"#34d399",short:"WFH-W"},
   {id:"mum_wio",l:"Mum WIO",c:"#fb923c",short:"M-WIO"},
   {id:"mum_wfh",l:"Mum WFH",c:"#f472b6",short:"M-WFH"},
   {id:"w_mum_wfh",l:"Workout Mum WFH",c:"#22d3ee",short:"WM-WFH"},
@@ -194,7 +194,7 @@ var CHECKLIST_DEF=[
   {id:"lunch",l:"Good lunch"},
   {id:"dinner",l:"Good dinner"},
   {id:"steps",l:"8k steps"},
-  {id:"fun",l:"Deliberate fun (not Netflix)"},
+  {id:"unstructured",l:"30 min unstructured time"},
   {id:"phone",l:"Phone down by 10pm"},
   {id:"sleep",l:"In bed by 10:30pm"}
 ];
@@ -202,52 +202,57 @@ var CHECKLIST_DEF=[
 var DEF_TEMPLATES={
   nw_wio:[
     {s:0,e:360,label:"Sleep",cat:"sleep"},
-    {s:360,e:375,label:"Meditation",cat:"health"},
-    {s:375,e:420,label:"Prep",cat:"personal"},
-    {s:420,e:465,label:"Commute",cat:"commute"},
-    {s:465,e:480,label:"Meal",cat:"personal"},
+    {s:360,e:390,label:"Prep",cat:"personal"},
+    {s:390,e:405,label:"Meditation",cat:"health"},
+    {s:405,e:450,label:"Commute",cat:"commute"},
+    {s:450,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
     {s:780,e:1080,label:"Work",cat:"work"},
-    {s:1080,e:1125,label:"Commute",cat:"commute"},
-    {s:1125,e:1170,label:"Meal",cat:"personal"},
-    {s:1170,e:1215,label:"Chores",cat:"chores"},
-    {s:1215,e:1260,label:"Rest",cat:"rest"},
-    {s:1260,e:1305,label:"",cat:"fun"},
-    {s:1305,e:1350,label:"Wind down",cat:"personal"},
+    {s:1080,e:1110,label:"Commute",cat:"commute"},
+    {s:1110,e:1125,label:"Cool down",cat:"rest"},
+    {s:1125,e:1155,label:"Meal",cat:"personal"},
+    {s:1155,e:1185,label:"Chores",cat:"chores"},
+    {s:1185,e:1230,label:"Self-time / Hobby",cat:"fun"},
+    {s:1230,e:1290,label:"Together time",cat:"rest"},
+    {s:1290,e:1320,label:"Prep",cat:"personal"},
+    {s:1320,e:1350,label:"Wind down",cat:"personal"},
     {s:1350,e:1440,label:"Sleep",cat:"sleep"}
   ],
   nw_wfh:[
     {s:0,e:360,label:"Sleep",cat:"sleep"},
     {s:360,e:375,label:"Meditation",cat:"health"},
-    {s:375,e:420,label:"Chores",cat:"chores"},
-    {s:420,e:450,label:"Prep",cat:"personal"},
-    {s:450,e:480,label:"Meal",cat:"personal"},
+    {s:375,e:420,label:"Workout",cat:"health"},
+    {s:420,e:465,label:"Prep",cat:"personal"},
+    {s:465,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
-    {s:780,e:1080,label:"Work",cat:"work"},
-    {s:1080,e:1125,label:"Walk",cat:"health"},
-    {s:1125,e:1170,label:"Meal",cat:"personal"},
-    {s:1170,e:1215,label:"Chores",cat:"chores"},
-    {s:1215,e:1260,label:"Rest",cat:"rest"},
-    {s:1260,e:1305,label:"",cat:"fun"},
-    {s:1305,e:1350,label:"Wind down",cat:"personal"},
+    {s:780,e:1020,label:"Work",cat:"work"},
+    {s:1020,e:1065,label:"Walk",cat:"health"},
+    {s:1065,e:1095,label:"Cool down",cat:"rest"},
+    {s:1095,e:1125,label:"Meal",cat:"personal"},
+    {s:1125,e:1155,label:"Chores",cat:"chores"},
+    {s:1155,e:1230,label:"Self-time / Hobby",cat:"fun"},
+    {s:1230,e:1290,label:"Together time",cat:"rest"},
+    {s:1290,e:1320,label:"Prep",cat:"personal"},
+    {s:1320,e:1350,label:"Wind down",cat:"personal"},
     {s:1350,e:1440,label:"Sleep",cat:"sleep"}
   ],
-  w_wfh:[
-    {s:0,e:360,label:"Sleep",cat:"sleep"},
-    {s:360,e:375,label:"Meditation",cat:"health"},
-    {s:375,e:405,label:"Workout",cat:"health"},
-    {s:405,e:450,label:"Prep",cat:"personal"},
-    {s:450,e:480,label:"Meal",cat:"personal"},
-    {s:480,e:720,label:"Work",cat:"work"},
+  nw_wfh_w:[
+    {s:0,e:390,label:"Sleep",cat:"sleep"},
+    {s:390,e:420,label:"Prep",cat:"personal"},
+    {s:420,e:480,label:"Market walk + breakfast",cat:"personal"},
+    {s:480,e:495,label:"Meditation",cat:"health"},
+    {s:495,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
     {s:780,e:1080,label:"Work",cat:"work"},
-    {s:1080,e:1125,label:"Meal",cat:"personal"},
-    {s:1125,e:1170,label:"Chores",cat:"chores"},
-    {s:1170,e:1215,label:"Rest",cat:"rest"},
-    {s:1215,e:1305,label:"",cat:"fun"},
-    {s:1305,e:1350,label:"Wind down",cat:"personal"},
+    {s:1080,e:1095,label:"Cool down",cat:"rest"},
+    {s:1095,e:1140,label:"Walk / Together activity",cat:"health"},
+    {s:1140,e:1185,label:"Meal",cat:"personal"},
+    {s:1185,e:1230,label:"Self-time / Hobby",cat:"fun"},
+    {s:1230,e:1290,label:"Together time",cat:"rest"},
+    {s:1290,e:1320,label:"Prep",cat:"personal"},
+    {s:1320,e:1350,label:"Wind down",cat:"personal"},
     {s:1350,e:1440,label:"Sleep",cat:"sleep"}
   ],
   mum_wio:[
@@ -322,17 +327,16 @@ var DEF_TEMPLATES={
   sunday:[
     {s:0,e:420,label:"Sleep",cat:"sleep"},
     {s:420,e:450,label:"Meditation",cat:"health"},
-    {s:450,e:495,label:"Chores",cat:"chores"},
-    {s:495,e:540,label:"Meal",cat:"personal"},
+    {s:450,e:495,label:"Prep",cat:"personal"},
+    {s:495,e:540,label:"Reading",cat:"fun"},
     {s:540,e:720,label:"Errands",cat:"chores"},
     {s:720,e:780,label:"Meal",cat:"personal"},
-    {s:780,e:1020,label:"Parents time",cat:"family"},
+    {s:780,e:1020,label:"Leisure / hobby",cat:"fun"},
     {s:1020,e:1080,label:"Meal",cat:"personal"},
-    {s:1080,e:1200,label:"Parents time",cat:"family"},
-    {s:1200,e:1230,label:"Prep",cat:"personal"},
-    {s:1230,e:1260,label:"Reading",cat:"fun"},
+    {s:1080,e:1260,label:"Personal project",cat:"personal"},
     {s:1260,e:1275,label:"BP reading",cat:"health"},
-    {s:1275,e:1320,label:"Wind down",cat:"personal"},
+    {s:1275,e:1305,label:"Weekly reflection",cat:"personal"},
+    {s:1305,e:1320,label:"Wind down",cat:"personal"},
     {s:1320,e:1440,label:"Sleep",cat:"sleep"}
   ],
   custom:[]
@@ -461,7 +465,7 @@ async function verifyLoginCode(){
 
 function rHome(){
   var today=todayStr();
-  var h='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F4CB}</div><h1>Daily OS</h1><p>Your daily operating system</p><p style="font-size:11px;color:var(--dim);margin-top:6px">'+VER+'</p></div>';
+  var h='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F4CB}</div><h1>Daily OS</h1><p>Your daily operating system</p><p style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic;line-height:1.4">"On a day with no surprise, no chaos, full health, what would my best self do?"</p><p style="font-size:11px;color:var(--dim);margin-top:6px">'+VER+'</p></div>';
   var td=getDay(today);
   if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today \u{00B7} '+fd(today)+'</button>';}
   else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+fd(today)+' \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
@@ -781,6 +785,7 @@ function rSummary(){
 function rTemplates(){
   var h='<div class="nav"><button class="bk" onclick="view=\'home\';editTpl=null;editTplBlk=null;R()">\u{2190} Back</button><span class="nav-t">Edit Templates</span><span style="width:40px"></span></div>';
   if(!editTpl){
+    h+='<div class="card" style="margin-bottom:14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25)"><p style="font-size:13px;line-height:1.5;color:var(--txt);margin:0;font-style:italic">"On a day with no surprise, no chaos, full health, what would my best self do?"</p><p style="font-size:11px;color:var(--mut);margin:8px 0 0 0">Templates are aspirational. They represent the day you want when you have the choice, not the day life forces.</p></div>';
     DTYPES.forEach(function(dt){
       if(dt.id==='custom')return;
       var tpl=data.templates[dt.id]||[];

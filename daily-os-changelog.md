@@ -1,5 +1,37 @@
 # Daily OS Changelog
 
+## v4.0u (2 May 2026)
+
+### Goal-Aligned Templates
+Following a coaching review of 20 days of logged data, the day-type templates and checklist defaults were redesigned around explicit goals:
+- 5 stated life goals (Sleep, Mental health practices, Physical health, Stress management, Career evolution)
+- 2 active goals for May-June (Foundation: sleep + mental health; Career exploration)
+- 3 maintained goals (physical health, stress management, parents care)
+
+### Day Type Changes
+- **Dropped**: `w_wfh` (workout WFH) — workout is now incorporated by default into `nw_wfh`
+- **Added**: `nw_wfh_w` (WFH with wife) — distinct template reflecting shared morning market walk and earlier evening start
+- **Renamed**: `nw_wio` label from "Non-workout WIO" to "WIO" (cleaner)
+- **Renamed**: `nw_wfh` label from "Non-workout WFH" to "WFH"
+
+### Template Updates
+- **nw_wio**: morning sequence reordered (Prep before Meditation), evening sequence expanded to include Cool down, Self-time / Hobby block (replacing unlabelled fun block), Together time, separate night Prep block before Wind down
+- **nw_wfh**: morning workout incorporated as default, work ends at 5pm (not 6pm) to allow Outdoor walk, evening flow rebalanced with Self-time / Hobby block
+- **nw_wfh_w** (new): wake at 6:30am, market walk + breakfast at 7-8am, meditation at 8am after breakfast, work 8:15am-6pm, evening Walk / Together activity, Together time with wife
+- **sunday**: parents time blocks removed entirely, replaced with Leisure / hobby (with wife) afternoon block (4pm window), Personal project / Career exploration block (3h evening), Weekly reflection added before Wind down
+
+### Checklist
+- Replaced "Deliberate fun (not Netflix)" with "30 min unstructured time" — better captures protected self-time which serves stress management goal regardless of activity choice
+
+### Aspirational Framing
+- Added italicised guiding question on home screen header: "On a day with no surprise, no chaos, full health, what would my best self do?"
+- Added expanded framing card at top of Edit Templates screen: same question plus explainer that templates represent aspiration, not what life forces
+
+### Migration Notes
+- Templates updated as DEFAULTS only. Existing user templates remain unchanged in user data.
+- To pull in new templates: use Reset All Templates feature in Edit Templates screen.
+- Custom day type and the parents-related day types (mum_wio, mum_wfh, w_mum_wfh) were not changed; consolidation of these was intentionally deferred.
+
 ## v4.0t (2 May 2026)
 
 ### Sign Out Button
