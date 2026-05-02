@@ -1,5 +1,13 @@
 # Daily OS Changelog
 
+## v4.0w (2 May 2026)
+
+### Bug Fix: Reset Templates Persistence
+- `resetTemplates()` only updated local state and localStorage, did not call `saveTemplateToDb()` for the reset templates
+- After reset, templates would appear correct in the UI but revert to old values on next reload (because Supabase was never updated)
+- Fix: after resetting local templates, iterate through all templates and call `saveTemplateToDb(key)` for each
+- Brings template reset behaviour in line with checklist reset (which already saved to Supabase)
+
 ## v4.0v (2 May 2026)
 
 ### Saturday Template Update

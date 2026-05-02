@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0v";
+var VER="v4.0w";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1068,7 +1068,12 @@ function tplPickM(m){
 }
 function resetTemplates(){
   if(!confirm("Reset all templates to default?"))return;
-  data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));editTpl=null;editTplBlk=null;sv();R();
+  data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));editTpl=null;editTplBlk=null;sv();
+  // Also save each template to Supabase so the reset persists
+  if(authUser){
+    Object.keys(data.templates).forEach(function(key){saveTemplateToDb(key)});
+  }
+  R();
 }
 
 // Checklist actions
