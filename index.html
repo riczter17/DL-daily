@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0r";
+var VER="v4.0s";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -401,27 +401,57 @@ function R(){
   else if(view==="my_activities")rMyActivities();
 }
 
+var loginStep='email'; // 'email' or 'code'
+var loginEmail='';
+
 function rLogin(){
   var h='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F510}</div><h1>Daily OS</h1><p>Sign in to continue</p></div>';
   h+='<div class="card">';
-  h+='<label class="lbl">Email</label>';
-  h+='<input class="fld" id="loginEmail" type="email" placeholder="your@email.com" autocomplete="email">';
-  h+='<button class="btn ba mt12" onclick="sendMagicLink()">Send Magic Link</button>';
+  if(loginStep==='email'){
+    h+='<label class="lbl">Email</label>';
+    h+='<input class="fld" id="loginEmail" type="email" placeholder="your@email.com" autocomplete="email" value="'+(loginEmail||'')+'">';
+    h+='<button class="btn ba mt12" onclick="sendLoginCode()">Send Code</button>';
+  }else{
+    h+='<p style="font-size:13px;color:var(--mut);margin-bottom:12px">We sent a 6-digit code to <strong>'+loginEmail+'</strong></p>';
+    h+='<label class="lbl">6-digit Code</label>';
+    h+='<input class="fld" id="loginCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" autocomplete="one-time-code">';
+    h+='<button class="btn ba mt12" onclick="verifyLoginCode()">Verify Code</button>';
+    h+='<button class="btn bo mt8" onclick="loginStep=\'email\';R()">Use a different email</button>';
+  }
   h+='<p id="loginMsg" style="font-size:12px;color:var(--mut);margin-top:12px;text-align:center"></p>';
   h+='</div>';
   $.innerHTML=h;
 }
 
-async function sendMagicLink(){
+async function sendLoginCode(){
   var email=document.getElementById('loginEmail').value.trim();
   var msgEl=document.getElementById('loginMsg');
   if(!email){msgEl.textContent='Enter your email first.';msgEl.style.color='var(--red)';return}
   msgEl.textContent='Sending...';
   msgEl.style.color='var(--mut)';
   try{
-    var result=await db.auth.signInWithOtp({email:email,options:{emailRedirectTo:window.location.origin}});
+    var result=await db.auth.signInWithOtp({email:email,options:{shouldCreateUser:false}});
     if(result.error)throw result.error;
-    msgEl.textContent='Check your email for the login link.';
+    loginEmail=email;
+    loginStep='code';
+    R();
+  }catch(err){
+    msgEl.textContent='Error: '+err.message;
+    msgEl.style.color='var(--red)';
+  }
+}
+
+async function verifyLoginCode(){
+  var code=document.getElementById('loginCode').value.trim();
+  var msgEl=document.getElementById('loginMsg');
+  if(!code||code.length!==6){msgEl.textContent='Enter the 6-digit code.';msgEl.style.color='var(--red)';return}
+  msgEl.textContent='Verifying...';
+  msgEl.style.color='var(--mut)';
+  try{
+    var result=await db.auth.verifyOtp({email:loginEmail,token:code,type:'email'});
+    if(result.error)throw result.error;
+    // onAuthStateChange will handle the SIGNED_IN event and trigger app load
+    msgEl.textContent='Success!';
     msgEl.style.color='var(--grn)';
   }catch(err){
     msgEl.textContent='Error: '+err.message;
