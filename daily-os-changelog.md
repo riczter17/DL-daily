@@ -1,5 +1,184 @@
 # Daily OS Changelog
 
+## v4.0t (2 May 2026)
+
+### Sign Out Button
+- Added a subtle "Sign out" link at the bottom of the home screen, below the DATA card
+- Shows "Signed in as [email]" above the sign out link for context
+- Sign out flow: confirms → unsubscribes from Realtime → clears local cache → calls `db.auth.signOut()` → reloads page
+- Useful for switching accounts and for testing the new login flow
+
+## v4.0s (2 May 2026)
+
+### iOS PWA Login Fix
+- Replaced single-step magic link login with two-step email + 6-digit code flow
+- Code is entered directly inside the app, eliminating the iOS PWA limitation where magic links open in Safari (separate storage context) instead of the home-screen-installed app
+- Existing magic link backup remains in the email for non-PWA contexts
+- Login UI now has two states: email entry, then code verification
+- "Use a different email" button to restart the flow
+
+### Required Supabase Configuration
+- Email template (Magic Link) must be modified to include `{{ .Token }}` so the 6-digit code is rendered in the email body
+- The same email contains both the code (for PWA) and the link (for browser)
+
+## v4.0r (2 May 2026)
+
+### Offline-First Cache
+- App now reads from `localStorage` cache immediately on load for instant render
+- Fresh data fetched from Supabase in the background, replacing cache on success
+- Refresh feels near-instant even on slow connections
+- App works in cached state when offline (read-only)
+
+### Real-time Cross-Device Sync
+- Subscribed to Supabase Realtime channels for `days`, `blocks`, `day_checklist`, `checklist_items`, `activities`, `templates`
+- Changes made on one device propagate to other open devices within ~1-2 seconds
+- 500ms debounce to batch rapid changes
+- No more manual refresh needed for cross-device sync
+
+### Required Supabase Configuration
+- Realtime publication must include the 6 user-scoped tables (via `enable-realtime.sql`)
+
+## v4.0q (1 May 2026)
+
+### Bug Fix: Time Picker Save
+- Fixed: editing block start/end times via the time picker (`pickH`, `pickM`) only saved to localStorage, not Supabase
+- Time edits now correctly call `updateBlockInDb()` and persist to the database
+- Affected day-block time edits only; template time picker (`tplPickH`, `tplPickM`) was already correctly hooked
+
+## v4.0p (29 April 2026)
+
+### Chrome Rendering Fix (final)
+- Decoupled auth event from data fetch via `setTimeout(200)` to let the Supabase library settle before triggering queries
+- Render now uses `requestAnimationFrame` to defer to a paint-ready frame
+- Resolves Chrome-specific multi-tab lock contention that caused black screen on `F5` after magic link login
+
+## v4.0n / v4.0o (29 April 2026)
+
+### Auth Lock Override
+- Added `lock` override to `createClient` config: `lock: function(name,acquireTimeout,fn){return fn()}`
+- Disables Supabase's Web Locks API coordination between tabs (not needed for single-user app)
+- Prevents `Lock "lock:sb-...-auth-token" was released because another request stole it` errors
+
+### Auth State Detection
+- Marks `initialAuthHandled` true on any auth event (`INITIAL_SESSION`, `SIGNED_IN`, `TOKEN_REFRESHED`), not just `INITIAL_SESSION`
+- Prevents false "no auth event after 2s" fallback when SIGNED_IN was the actual trigger
+
+## v4.0k - v4.0m (27-29 April 2026)
+
+### Diagnostic Logging
+- Added `[initApp]`, `[onAuthStateChange]`, `[handleAuthState]` console logs at each step
+- Wrapped async calls in try/catch to surface silent failures
+- Added DOM ready check (`#app` existence retry) before initial render
+- Fallback: if no auth event fires within 2 seconds, render anyway with `null` user
+
+## v4.0j (27 April 2026)
+
+### Race Condition Fix
+- Added `appInitialised` flag so `initApp()` runs only once
+- Skip `INITIAL_SESSION` event in `onAuthStateChange` if already initialised
+- Wrapped initial init in `DOMContentLoaded` listener
+- Prevents double-load race that wiped rendered content
+
+## v4.0i (27 April 2026)
+
+### Phase 4d.6: Checklist Definitions Save
+- Added `saveChecklistDefsToDb()` helper using wipe-and-rewrite pattern
+- Hooked into `clMove`, `clDel`, `clAdd`, `clReset`
+- All checklist edit operations now sync to `checklist_items` table
+
+## v4.0h (27 April 2026)
+
+### Phase 4d.5: Templates Save
+- Added `saveTemplateToDb(templateKey)` helper that wipes and rewrites all `template_blocks` for the affected template
+- Hooked into 7 template-modifying functions: `tplActSel`, `updTplBlk`, `addTplBlk`, `sortTplByTime`, `tplPickH`, `tplPickM`, `delTplBlk`
+- Template edits now persist to Supabase
+
+## v4.0g (27 April 2026)
+
+### Phase 4d.4: Custom Activities Save
+- Added `insertCustomActivityToDb`, `updateCustomActivityInDb`, `deleteCustomActivityFromDb` helpers
+- Soft delete: removed activities set `is_active=false` rather than deleted
+- Hooked into `updBlk` (label/category changes that register custom activities) and `delCustomActivity`
+- `loadDataFromDb` now filters out soft-deleted activities
+
+## v4.0f (27 April 2026)
+
+### Phase 4d.3: Day Checklist Save
+- Added `saveDayChecklistToDb(date, itemId, checked)` helper using upsert with `(user_id, date, item_id)` composite unique key
+- Hooked into `toggleCheck` so checklist tick state syncs immediately
+- Seeded default checklist items into Supabase
+
+## v4.0e (27 April 2026)
+
+### Phase 4d.2: Block Save
+- Added `insertBlockToDb`, `updateBlockInDb`, `deleteBlockFromDb` helpers
+- Hooked into `addBlk`, `delBlk`, `updBlk`, `actSel`, `applyDayType`
+- Local blocks now track Supabase ID via `_id` field for update/delete operations
+- `applyDayType` made async to handle delete-old-blocks + insert-new-blocks sequence
+
+### Default Templates Seeded
+- 9 default templates inserted into Supabase via SQL DO block
+- 120 template_blocks total
+
+## v4.0d (26 April 2026)
+
+### Phase 4d.1: Day Record Save
+- Added `saveDayToDb(date)` helper using upsert with `(user_id, date)` composite key
+- Hooked into `setCustomLabel`, `setMorningEnergy`, `updDayNote`, `applyDayType`
+- Day-level changes now persist to Supabase
+
+## v4.0c (26 April 2026)
+
+### Phase 4c: Read from Supabase
+- Added `loadDataFromDb()` that fetches all 7 user-scoped tables in parallel using `Promise.all`
+- Builds local `data` object structure expected by existing render code
+- Replaces localStorage as the source of truth for reads
+- App is read-only against Supabase at this stage (writes still go to localStorage)
+
+## v4.0b (26 April 2026)
+
+### Phase 4b: Login Screen + Magic Link
+- Added login screen with email input and "Send Magic Link" button
+- `sendMagicLink()` calls `db.auth.signInWithOtp()`
+- `R()` router checks `authUser` and renders login screen when null
+- `db.auth.onAuthStateChange` listener handles auth state changes
+- Initial app boot sequence: get session, set authUser, render
+
+## v4.0a (26 April 2026)
+
+### Phase 4a: Supabase Client Integration
+- Added Supabase JS library via CDN
+- Initialised client with project URL and anon key
+- Client renamed to `db` to avoid global namespace collision with `supabase`
+
+## v4.0 Foundation (26 April 2026)
+
+### Phase 1: Schema Design
+- 10 tables designed: 7 user-scoped + 3 reference
+- Foreign key constraints, check constraints, unique constraints
+- Soft delete on activities via `is_active`
+- Templates split into `templates` + `template_blocks` for full normalisation
+
+### Phase 2: Schema Implementation
+- Created tables in Supabase via SQL: `categories`, `day_types`, `block_statuses`, `activities`, `days`, `blocks`, `checklist_items`, `day_checklist`, `templates`, `template_blocks`
+- Indexes on user+date and user+category for performance
+- Row Level Security (RLS) enabled on all tables with `auth.uid() = user_id` policies
+
+### Phase 3: Auth Setup
+- Magic link email auth enabled
+- Site URL: `https://dl-daily.vercel.app`
+- Redirect URLs: bare domain + wildcard
+
+### Phase 5: Data Migration
+- Migrated 21 days, 329 blocks, 9 customised templates, 13 custom activities, 8 checklist items from v3 localStorage export
+- Wipe-and-rewrite strategy in transaction (BEGIN/COMMIT)
+- Custom activities deduplicated by label, dominant category retained for the registry
+
+### Hosting Architecture
+- Production app: Vercel (`dl-daily.vercel.app`)
+- Auto-deploy from `DL-daily` GitHub repo on push
+- v3 frozen snapshot retained at `DL-daily-v3` repo (GitHub Pages) for rollback
+
 ## v3.5 (21 April 2026)
 
 ### WIO Templates
