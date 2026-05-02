@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0s";
+var VER="v4.0t";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -519,7 +519,31 @@ function rHome(){
   h+='<label class="bsm-m" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer">\u{1F4E5} Import<input type="file" accept=".json" style="display:none" onchange="doImp(event)"></label>';
   h+='<button class="bsm-m" onclick="doReset()">\u{1F5D1} Reset</button>';
   h+='</div></div>';
+  if(authUser){
+    h+='<div style="text-align:center;margin-top:24px;font-size:11px;color:var(--dim)">Signed in as '+authUser.email+'</div>';
+    h+='<div style="text-align:center;margin-top:8px"><button onclick="doSignOut()" style="background:transparent;border:none;color:var(--dim);font-size:11px;text-decoration:underline;cursor:pointer;padding:4px 8px">Sign out</button></div>';
+  }
   $.innerHTML=h;
+}
+
+async function doSignOut(){
+  if(!confirm("Sign out of Daily OS? You will need to sign in again with a code."))return;
+  try{
+    // Unsubscribe from realtime
+    if(realtimeChannel){await db.removeChannel(realtimeChannel);realtimeChannel=null}
+    // Clear local cache
+    try{localStorage.removeItem(KS)}catch(e){}
+    // Sign out of Supabase
+    await db.auth.signOut();
+    // Reset login state
+    loginStep='email';
+    loginEmail='';
+    authUser=null;
+    // Reload to clean state
+    location.reload();
+  }catch(err){
+    alert('Sign out failed: '+err.message);
+  }
 }
 
 function rDay(){
