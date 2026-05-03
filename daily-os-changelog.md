@@ -1,5 +1,14 @@
 # Daily OS Changelog
 
+## v4.0y (3 May 2026)
+
+### Bug Fix: Add Block (revised)
+- v4.0x's fix changed the predictable "append after last block" behaviour, which disrupted the user's familiar workflow of immediately adjusting the time after Add.
+- v4.0y restores the original behaviour: new block starts where the last block in the array ended.
+- If that would produce an invalid range (zero/negative duration, e.g. when the array's last block ends at 1440), it falls through to scanning the timeline for the earliest empty gap.
+- Ultimate fallback if everything else fails: 8am-9am.
+- The user can immediately adjust the time after Add as before.
+
 ## v4.0x (3 May 2026)
 
 ### Bug Fix: Add Block Constraint Violation
