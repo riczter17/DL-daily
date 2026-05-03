@@ -1,5 +1,11 @@
 # Daily OS Changelog
 
+## v4.0aa (3 May 2026)
+
+### Saturday Template Label Update
+- Saturday template default block "Breakfast / Rest with wife" updated to "Wife time" to match the consolidated activities list.
+- This change is to the DEFAULT only. Existing user template in Supabase still uses the old label until next Reset Templates.
+
 ## v4.0z (3 May 2026)
 
 ### Bug Fix: Realtime Race Condition Overwriting Local Edits
