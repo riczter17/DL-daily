@@ -1,5 +1,23 @@
 # Daily OS Changelog
 
+## v4.1.1 (3 May 2026)
+
+### Energy Score Guide (fingertip reminders)
+- Added context-specific energy scoring guides accessible via small "?" buttons
+- Three guide variants:
+  - **Morning Energy**: 5 = jump out of bed; 1 = drowsy when alarmed (subjective wake feeling)
+  - **Sleep block**: 5 = 90+ Excellent; 4 = 80-89 Good; 3 = 70-79 Fair; 2 = 60-69 Poor; 1 = below 60 (Xiaomi Smart Band 10 sleep score mapping)
+  - **Other blocks**: 5 = peak / fully engaged; 4 = good / productive; 3 = okay / neutral; 2 = low / dragging; 1 = drained
+- "?" button placement:
+  - Next to "Morning Energy" header on the day view
+  - Next to "Energy" label inside any block's expanded view
+- Block-level guide is automatically context-aware: sleep category shows the sleep score guide, all other categories show the standard energy guide
+- Tap "?" → modal overlay with 5-row scale and "Got it" button. Tap outside or "Got it" to dismiss.
+- Helps anchor against the common underscoring tendency: 3 = neutral and functional, not "below average"
+
+### Subtle Tweak
+- Morning Energy 1/5 hint updated from "1 = drained / 5 = peak" to "1 = drowsy / 5 = jump out of bed" to match the wake-feeling framing
+
 ## v4.1.0 (3 May 2026)
 
 ### Visual Reskin: Calm Classic with Grapemist Accent

@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.1.0";
+var VER="v4.1.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -420,6 +420,50 @@ function R(){
   else if(view==="templates")rTemplates();
   else if(view==="checklist_edit")rChecklistEdit();
   else if(view==="my_activities")rMyActivities();
+  // Append energy guide overlay if active
+  if(energyGuideShown)$.innerHTML+=renderEnergyGuide();
+}
+
+function renderEnergyGuide(){
+  var rows=[];
+  var title='';
+  if(energyGuideShown==='morning'){
+    title='Morning Energy Guide';
+    rows=[
+      ['5','Jump out of bed, ready to go'],
+      ['4','Awake easily, good to start'],
+      ['3','Awake but slow to get going'],
+      ['2','Hard to get up, lethargic'],
+      ['1','Drowsy, pushed through alarm']
+    ];
+  }else if(energyGuideShown==='sleep'){
+    title='Sleep Score Guide';
+    rows=[
+      ['5','90+ (Excellent)'],
+      ['4','80-89 (Good)'],
+      ['3','70-79 (Fair)'],
+      ['2','60-69 (Poor)'],
+      ['1','Below 60 (Very poor)']
+    ];
+  }else{
+    title='Energy Guide';
+    rows=[
+      ['5','Peak; fully engaged, focus flowing'],
+      ['4','Good; productive without effort'],
+      ['3','Okay; functional, neutral'],
+      ['2','Low; dragging, having to push'],
+      ['1','Drained; barely functioning']
+    ];
+  }
+  var html='<div onclick="if(event.target===this)hideEnergyGuide()" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px">';
+  html+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:20px;max-width:340px;width:100%">';
+  html+='<h3 style="font-size:16px;font-weight:700;color:var(--wht);margin-bottom:14px">'+title+'</h3>';
+  rows.forEach(function(r){
+    html+='<div style="display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid var(--bdr)"><div style="width:28px;height:28px;border-radius:6px;background:var(--acc-s);color:var(--acc);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">'+r[0]+'</div><div style="font-size:13px;color:var(--txt);line-height:1.4;padding-top:4px">'+r[1]+'</div></div>';
+  });
+  html+='<button onclick="hideEnergyGuide()" style="width:100%;margin-top:14px;padding:10px;border-radius:8px;background:var(--acc);color:var(--bg);border:none;font-weight:700;font-size:14px;cursor:pointer">Got it</button>';
+  html+='</div></div>';
+  return html;
 }
 
 var loginStep='email'; // 'email' or 'code'
@@ -586,7 +630,7 @@ function rDay(){
   if(day.dayType){
     // Morning Energy
     h+='<div class="card" style="padding:14px;margin-bottom:12px;background:var(--card)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
-    h+='<div><div style="font-size:14px;font-weight:700;color:var(--wht)">\u{2600}\u{FE0F} Morning Energy</div>';
+    h+='<div><div style="font-size:14px;font-weight:700;color:var(--wht)">\u{2600}\u{FE0F} Morning Energy <button onclick="showEnergyGuide(\'morning\')" style="background:transparent;border:1px solid var(--bdr);color:var(--mut);width:18px;height:18px;border-radius:50%;font-size:11px;cursor:pointer;margin-left:4px;padding:0;line-height:1">?</button></div>';
     h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">How rested do you feel on waking?</div></div>';
     if(day.morningEnergy){h+='<button style="background:transparent;border:none;color:var(--dim);font-size:11px;cursor:pointer" onclick="setMorningEnergy(null)">Clear</button>';}
     h+='</div><div style="display:flex;gap:6px">';
@@ -594,7 +638,7 @@ function rDay(){
       var onSel=day.morningEnergy===me;
       h+='<button style="flex:1;padding:10px;border-radius:8px;font-size:14px;font-weight:700;border:1px solid '+(onSel?'var(--acc)':'var(--bdr)')+';background:'+(onSel?'var(--acc-s)':'var(--bg)')+';color:'+(onSel?'var(--acc)':'var(--mut)')+';cursor:pointer" onclick="setMorningEnergy('+me+')">'+me+'</button>';
     }
-    h+='</div><div style="font-size:10px;color:var(--dim);margin-top:6px;display:flex;justify-content:space-between"><span>1 = drained</span><span>5 = peak</span></div></div>';
+    h+='</div><div style="font-size:10px;color:var(--dim);margin-top:6px;display:flex;justify-content:space-between"><span>1 = drowsy</span><span>5 = jump out of bed</span></div></div>';
 
     h+='<div class="sec" style="margin-top:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec-t" style="margin-bottom:0">Timeline</h2>';
     if(day.blocks.length>1)h+='<button class="bsm" onclick="sortBlocksByTime()">Sort by time</button>';
@@ -637,9 +681,10 @@ function rDay(){
             }
           }
           h+='</div>';
-          h+='<label class="lbl mt8">Energy</label><div class="eng">';
+          var energyType=b.cat==='sleep'?'sleep':'block';
+          h+='<div style="display:flex;align-items:center;gap:6px;margin-top:8px"><label class="lbl" style="margin:0">Energy</label><button onclick="showEnergyGuide(\''+energyType+'\')" style="background:transparent;border:1px solid var(--bdr);color:var(--mut);width:18px;height:18px;border-radius:50%;font-size:11px;cursor:pointer;padding:0;line-height:1">?</button></div><div class="eng">';
           for(var e=1;e<=5;e++)h+='<button class="eng-b'+(b.energy===e?' on':'')+'" onclick="updBlk('+i+',\'energy\','+e+')">'+e+'</button>';
-          h+='<span style="font-size:11px;color:var(--dim);align-self:center;margin-left:4px">1=drained 5=peak</span></div>';
+          h+='</div>';
           h+='<div style="display:flex;gap:6px;margin:8px 0">';
           h+='<button style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+(b.status==='planned'?'var(--grn)':'var(--bdr)')+';background:'+(b.status==='planned'?'var(--grn-s)':'var(--bg)')+';color:'+(b.status==='planned'?'var(--grn)':'var(--mut)')+'" onclick="updBlk('+i+',\'status\',\'planned\')">\u{2705} Planned</button>';
           h+='<button style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+(b.status==='unplanned'?'var(--acc)':'var(--bdr)')+';background:'+(b.status==='unplanned'?'var(--acc-s)':'var(--bg)')+';color:'+(b.status==='unplanned'?'var(--acc)':'var(--mut)')+'" onclick="updBlk('+i+',\'status\',\'unplanned\')">\u{1F536} Unplanned</button>';
@@ -971,6 +1016,10 @@ async function applyDayType(dtId,replaceTpl){
 function setCustomLabel(v){var day=ensureDay(curDate);day.customLabel=v;sv();saveDayToDb(curDate)}
 //function setMorningEnergy(v){var day=ensureDay(curDate);day.morningEnergy=v;sv();R()}
 function setMorningEnergy(v){var day=ensureDay(curDate);day.morningEnergy=v;sv();saveDayToDb(curDate);R()}
+
+var energyGuideShown=null; // null | 'morning' | 'sleep' | 'block'
+function showEnergyGuide(type){energyGuideShown=type;R()}
+function hideEnergyGuide(){energyGuideShown=null;R()}
 function toggleCheck(id){
   var day=ensureDay(curDate);
   day.checklist[id]=!day.checklist[id];
