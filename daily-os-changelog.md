@@ -1,5 +1,12 @@
 # Daily OS Changelog
 
+## v4.0x (3 May 2026)
+
+### Bug Fix: Add Block Constraint Violation
+- `addBlk()` derived the new block's start time from the LAST block in the array's `end` field, regardless of order. When the last block in the array ended at 1440 (midnight, typical for end-of-day Sleep), the new block was created with `start=1440, end=1440`, violating the database CHECK constraint `start_min < end_min`.
+- Fix: scan all blocks for the latest end time that's strictly before midnight (1440), and use that as the new block's start. If start would still be at/near midnight, fall back to 8am (480 min). Final safety check ensures non-zero duration.
+- Symptom before fix: tapping "Add block" appeared to add a block locally but it disappeared on refresh because the Supabase insert failed silently; only the localStorage write persisted briefly.
+
 ## v4.0w (2 May 2026)
 
 ### Bug Fix: Reset Templates Persistence

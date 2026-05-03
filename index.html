@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0w";
+var VER="v4.0x";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1006,8 +1006,16 @@ function delBlk(i){
 }
 function addBlk(){
   var day=ensureDay(curDate);
-  var last=day.blocks.length>0?day.blocks[day.blocks.length-1].e:480;
-  var newBlock={s:last,e:Math.min(last+60,1440),label:"",cat:"personal",energy:null,note:"",status:"unplanned"};
+  // Find a sensible start time: the latest end time that still leaves room before midnight
+  var maxEnd=0;
+  day.blocks.forEach(function(b){if(b.e>maxEnd&&b.e<1440)maxEnd=b.e});
+  var start=maxEnd>0?maxEnd:480; // default to 8am if no usable end found
+  // If start is already at or near midnight, fall back to a default slot at 8am
+  if(start>=1440-15)start=480;
+  var end=Math.min(start+60,1440);
+  // Final safety: ensure non-zero duration
+  if(end<=start){start=0;end=60}
+  var newBlock={s:start,e:end,label:"",cat:"personal",energy:null,note:"",status:"unplanned"};
   day.blocks.push(newBlock);
   openBlk=day.blocks.length-1;
   sv();
