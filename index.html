@@ -8,10 +8,16 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Daily OS">
 <meta name="theme-color" content="#0f1117">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0f1117;--card:#1a1d27;--card-h:#22263a;--bdr:#2a2e3e;--acc:#e8a838;--acc-s:rgba(232,168,56,.12);--grn:#34d399;--grn-s:rgba(52,211,153,.12);--red:#f87171;--red-s:rgba(248,113,113,.12);--txt:#e8e9ed;--mut:#8b8fa3;--dim:#5c6078;--wht:#fff;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+/* Dark theme (default) - calm classic monochrome with grapemist accent */
+:root{--bg:#0e0e10;--card:#18181b;--card-h:#22222a;--bdr:#2a2a30;--acc:#8398CA;--acc-s:rgba(131,152,202,.14);--grn:#7fa68f;--grn-s:rgba(127,166,143,.14);--red:#c97a7a;--red-s:rgba(201,122,122,.14);--txt:#f5f5f4;--mut:#a0a0a0;--dim:#6b6b6b;--wht:#fff;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+/* Light theme */
+:root[data-theme="light"]{--bg:#fafaf8;--card:#ffffff;--card-h:#f5f5f3;--bdr:#e8e8e5;--acc:#7286b8;--acc-s:rgba(114,134,184,.10);--grn:#6b9080;--grn-s:rgba(107,144,128,.10);--red:#b85c5c;--red-s:rgba(184,92,92,.10);--txt:#1a1a1a;--mut:#6b6b6b;--dim:#a0a0a0;--wht:#1a1a1a}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;background:var(--bg);color:var(--txt);min-height:100dvh;padding-top:var(--st);padding-bottom:var(--sb);overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+body{font-family:'Roboto',-apple-system,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--txt);min-height:100dvh;padding-top:var(--st);padding-bottom:var(--sb);overscroll-behavior:none;-webkit-font-smoothing:antialiased}
 #app{max-width:480px;margin:0 auto;padding:0 16px 40px}
 button{font-family:inherit;cursor:pointer;-webkit-appearance:none}input,select,textarea{font-family:inherit}
 .btn{width:100%;border:none;border-radius:12px;font-size:15px;font-weight:700;padding:15px;display:flex;align-items:center;justify-content:center;gap:8px}
@@ -98,31 +104,31 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0aa";
+var VER="v4.1.0";
 var authUser=null;
 var CATS=[
-  {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
-  {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#f472b6"},
-  {id:"health",l:"Health",e:"\u{1F4AA}",c:"#34d399"},
-  {id:"rest",l:"Rest",e:"\u{1F6CB}",c:"#a78bfa"},
-  {id:"commute",l:"Commute",e:"\u{1F697}",c:"#fb923c"},
-  {id:"chores",l:"Chores",e:"\u{1F3E0}",c:"#fbbf24"},
-  {id:"fun",l:"Fun",e:"\u{1F3B8}",c:"#22d3ee"},
-  {id:"sleep",l:"Sleep",e:"\u{1F634}",c:"#6366f1"},
-  {id:"personal",l:"Personal",e:"\u{1F4F1}",c:"#94a3b8"}
+  {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
+  {id:"family",l:"Family",e:"\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}",c:"#c98aa3"},
+  {id:"health",l:"Health",e:"\u{1F4AA}",c:"#7fa68f"},
+  {id:"rest",l:"Rest",e:"\u{1F6CB}",c:"#9989b3"},
+  {id:"commute",l:"Commute",e:"\u{1F697}",c:"#c89478"},
+  {id:"chores",l:"Chores",e:"\u{1F3E0}",c:"#c8a878"},
+  {id:"fun",l:"Fun",e:"\u{1F3B8}",c:"#7aaab0"},
+  {id:"sleep",l:"Sleep",e:"\u{1F634}",c:"#7878a8"},
+  {id:"personal",l:"Personal",e:"\u{1F4F1}",c:"#9c9c9c"}
 ];
 function gC(id){for(var i=0;i<CATS.length;i++)if(CATS[i].id===id)return CATS[i];return null}
 
 var DTYPES=[
-  {id:"nw_wio",l:"WIO",c:"#60a5fa",short:"WIO"},
-  {id:"nw_wfh",l:"WFH",c:"#a78bfa",short:"WFH"},
-  {id:"nw_wfh_w",l:"WFH with wife",c:"#34d399",short:"WFH-W"},
-  {id:"mum_wio",l:"Mum WIO",c:"#fb923c",short:"M-WIO"},
-  {id:"mum_wfh",l:"Mum WFH",c:"#f472b6",short:"M-WFH"},
-  {id:"w_mum_wfh",l:"Workout Mum WFH",c:"#22d3ee",short:"WM-WFH"},
-  {id:"saturday",l:"Saturday",c:"#fbbf24",short:"SAT"},
-  {id:"sunday",l:"Sunday",c:"#fb923c",short:"SUN"},
-  {id:"custom",l:"Custom",c:"#94a3b8",short:"Custom"}
+  {id:"nw_wio",l:"WIO",c:"#7a8aad",short:"WIO"},
+  {id:"nw_wfh",l:"WFH",c:"#9989b3",short:"WFH"},
+  {id:"nw_wfh_w",l:"WFH with wife",c:"#7fa68f",short:"WFH-W"},
+  {id:"mum_wio",l:"Mum WIO",c:"#c89478",short:"M-WIO"},
+  {id:"mum_wfh",l:"Mum WFH",c:"#c98aa3",short:"M-WFH"},
+  {id:"w_mum_wfh",l:"Workout Mum WFH",c:"#7aaab0",short:"WM-WFH"},
+  {id:"saturday",l:"Saturday",c:"#c8a878",short:"SAT"},
+  {id:"sunday",l:"Sunday",c:"#c89478",short:"SUN"},
+  {id:"custom",l:"Custom",c:"#9c9c9c",short:"Custom"}
 ];
 function gDT(id){for(var i=0;i<DTYPES.length;i++)if(DTYPES[i].id===id)return DTYPES[i];return null}
 
@@ -340,8 +346,22 @@ var DEF_TEMPLATES={
 };
 
 var KS="dos-v2";
+var THEME_KS="dos-theme";
 function ld(){try{var v=localStorage.getItem(KS);return v?JSON.parse(v):null}catch(e){return null}}
 function sv(){localStorage.setItem(KS,JSON.stringify(data))}
+function loadTheme(){try{var t=localStorage.getItem(THEME_KS);if(t==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}}
+function toggleTheme(){
+  var current=document.documentElement.getAttribute('data-theme');
+  if(current==='light'){
+    document.documentElement.removeAttribute('data-theme');
+    try{localStorage.setItem(THEME_KS,'dark')}catch(e){}
+  }else{
+    document.documentElement.setAttribute('data-theme','light');
+    try{localStorage.setItem(THEME_KS,'light')}catch(e){}
+  }
+  R();
+}
+loadTheme();
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fd(d){return new Date(d+"T00:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}
 function addDays(d,n){var dt=new Date(d+"T00:00:00");dt.setDate(dt.getDate()+n);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')}
@@ -462,7 +482,10 @@ async function verifyLoginCode(){
 
 function rHome(){
   var today=todayStr();
-  var h='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F4CB}</div><h1>Daily OS</h1><p>Your daily operating system</p><p style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic;line-height:1.4">"On a day with no surprise, no chaos, full health, what would my best self do?"</p><p style="font-size:11px;color:var(--dim);margin-top:6px">'+VER+'</p></div>';
+  var isLight=document.documentElement.getAttribute('data-theme')==='light';
+  var themeIcon=isLight?'\u{1F319}':'\u{2600}\u{FE0F}';
+  var h='<div style="position:relative"><button onclick="toggleTheme()" style="position:absolute;top:8px;right:0;background:transparent;border:1px solid var(--bdr);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--mut)" title="Toggle theme">'+themeIcon+'</button></div>';
+  h+='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F4CB}</div><h1>Daily OS</h1><p>Your daily operating system</p><p style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic;line-height:1.4">"On a day with no surprise, no chaos, full health, what would my best self do?"</p><p style="font-size:11px;color:var(--dim);margin-top:6px">'+VER+'</p></div>';
   var td=getDay(today);
   if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today \u{00B7} '+fd(today)+'</button>';}
   else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+fd(today)+' \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
@@ -782,7 +805,7 @@ function rSummary(){
 function rTemplates(){
   var h='<div class="nav"><button class="bk" onclick="view=\'home\';editTpl=null;editTplBlk=null;R()">\u{2190} Back</button><span class="nav-t">Edit Templates</span><span style="width:40px"></span></div>';
   if(!editTpl){
-    h+='<div class="card" style="margin-bottom:14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25)"><p style="font-size:13px;line-height:1.5;color:var(--txt);margin:0;font-style:italic">"On a day with no surprise, no chaos, full health, what would my best self do?"</p><p style="font-size:11px;color:var(--mut);margin:8px 0 0 0">Templates are aspirational. They represent the day you want when you have the choice, not the day life forces.</p></div>';
+    h+='<div class="card" style="margin-bottom:14px;background:var(--acc-s);border:1px solid var(--acc)"><p style="font-size:13px;line-height:1.5;color:var(--txt);margin:0;font-style:italic">"On a day with no surprise, no chaos, full health, what would my best self do?"</p><p style="font-size:11px;color:var(--mut);margin:8px 0 0 0">Templates are aspirational. They represent the day you want when you have the choice, not the day life forces.</p></div>';
     DTYPES.forEach(function(dt){
       if(dt.id==='custom')return;
       var tpl=data.templates[dt.id]||[];

@@ -1,5 +1,25 @@
 # Daily OS Changelog
 
+## v4.1.0 (3 May 2026)
+
+### Visual Reskin: Calm Classic with Grapemist Accent
+- New theme: monochrome (black/white/grey) with grapemist (#8398CA) as the signature accent colour
+- Roboto font (Google Fonts) replaces system default sans-serif
+- Light + dark theme toggle on home screen header (sun/moon icon, top-right). Persists per device via localStorage (key: `dos-theme`).
+- Default theme is dark; toggle switches to light when tapped
+- Category colours desaturated to match the calm aesthetic (still distinguishable but no longer vibrant)
+- Day type badge colours desaturated similarly
+- Edit Templates framing card now uses the accent variable so it adapts to both themes
+- All existing UI elements use CSS variables that respond correctly to theme switching
+
+### Theme Variable Sets
+**Dark (default):** background `#0e0e10`, surfaces `#18181b`, text `#f5f5f4`, accent grapemist
+**Light:** background `#fafaf8`, surfaces `#ffffff`, text `#1a1a1a`, accent grapemist (slightly darker for contrast)
+
+### Notes
+- Theme preference is per-device by design: dark in low light, light in bright sun
+- No data changes; purely visual
+
 ## v4.0aa (3 May 2026)
 
 ### Saturday Template Label Update
