@@ -1,5 +1,14 @@
 # Daily OS Changelog
 
+## v4.0z (3 May 2026)
+
+### Bug Fix: Realtime Race Condition Overwriting Local Edits
+- Realtime subscriptions in v4.0r reloaded all data from Supabase whenever any user-scoped table changed, including changes from THIS device.
+- Symptom: editing a block (e.g. setting a time on a newly-added block) would briefly show the edit, then revert as the realtime reload from the previous write landed with stale data.
+- Fix: track timestamp of last local write. When realtime change events arrive within 3 seconds of a local write, skip the reload (the change is almost certainly our own; localStorage cache is already correct).
+- Added `noteLocalWrite()` calls at the top of all 10 DB write helpers so any local mutation tags itself.
+- Cross-device sync still works: writes from OTHER devices arrive without the 3-second window from this device, so they trigger reload normally.
+
 ## v4.0y (3 May 2026)
 
 ### Bug Fix: Add Block (revised)

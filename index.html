@@ -98,7 +98,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.0y";
+var VER="v4.0z";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#60a5fa"},
@@ -1105,6 +1105,7 @@ function doReset(){if(!confirm("Reset all data? Cannot be undone."))return;local
 
 async function saveDayToDb(date){
   if(!authUser||!data.days[date])return;
+  noteLocalWrite();
   var d=data.days[date];
   var payload={
     user_id:authUser.id,
@@ -1121,6 +1122,7 @@ async function saveDayToDb(date){
 
 async function insertBlockToDb(date,localBlock){
   if(!authUser)return;
+  noteLocalWrite();
   var payload={
     user_id:authUser.id,
     date:date,
@@ -1139,6 +1141,7 @@ async function insertBlockToDb(date,localBlock){
 
 async function updateBlockInDb(localBlock){
   if(!authUser||!localBlock._id)return;
+  noteLocalWrite();
   var payload={
     start_min:localBlock.s,
     end_min:localBlock.e,
@@ -1155,12 +1158,14 @@ async function updateBlockInDb(localBlock){
 
 async function deleteBlockFromDb(blockId){
   if(!authUser||!blockId)return;
+  noteLocalWrite();
   var result=await db.from('blocks').delete().eq('id',blockId);
   if(result.error)console.error('deleteBlockFromDb error:',result.error);
 }
 
 async function saveDayChecklistToDb(date,itemId,checked){
   if(!authUser)return;
+  noteLocalWrite();
   var payload={
     user_id:authUser.id,
     date:date,
@@ -1174,6 +1179,7 @@ async function saveDayChecklistToDb(date,itemId,checked){
 
 async function insertCustomActivityToDb(localActivity){
   if(!authUser)return;
+  noteLocalWrite();
   var payload={
     label:localActivity.l,
     category_id:localActivity.cat,
@@ -1189,6 +1195,7 @@ async function insertCustomActivityToDb(localActivity){
 
 async function updateCustomActivityInDb(localActivity){
   if(!authUser||!localActivity._id)return;
+  noteLocalWrite();
   var payload={
     category_id:localActivity.cat,
     group_name:localActivity.grp||'My Activities'
@@ -1199,6 +1206,7 @@ async function updateCustomActivityInDb(localActivity){
 
 async function deleteCustomActivityFromDb(activityId){
   if(!authUser||!activityId)return;
+  noteLocalWrite();
   // Soft delete: set is_active to false
   var result=await db.from('activities').update({is_active:false}).eq('id',activityId);
   if(result.error)console.error('deleteCustomActivityFromDb error:',result.error);
@@ -1206,6 +1214,7 @@ async function deleteCustomActivityFromDb(activityId){
 
 async function saveTemplateToDb(templateKey){
   if(!authUser||!data.templates[templateKey])return;
+  noteLocalWrite();
   var blocks=data.templates[templateKey];
   // Find or create the template row
   var tplRes=await db.from('templates').select('id').eq('user_id',authUser.id).eq('template_key',templateKey).maybeSingle();
@@ -1234,6 +1243,7 @@ async function saveTemplateToDb(templateKey){
 
 async function saveChecklistDefsToDb(){
   if(!authUser)return;
+  noteLocalWrite();
   // Wipe and rewrite all checklist_items for this user
   var delRes=await db.from('checklist_items').delete().eq('user_id',authUser.id);
   if(delRes.error){console.error('saveChecklistDefsToDb delete error:',delRes.error);return}
@@ -1313,6 +1323,8 @@ async function loadDataFromDb(){
 // Realtime sync: subscribe to changes from other devices
 var realtimeChannel=null;
 var realtimeReloadTimer=null;
+var lastLocalWriteAt=0;
+function noteLocalWrite(){lastLocalWriteAt=Date.now()}
 function setupRealtimeSync(){
   if(realtimeChannel||!authUser)return;
   console.log('[realtime] Setting up subscription');
@@ -1329,6 +1341,11 @@ function setupRealtimeSync(){
 // Debounced reload triggered by realtime events
 function triggerReload(payload){
   console.log('[realtime] Change detected:',payload.table,payload.eventType);
+  // Skip reload if this device made a local write recently — likely the change is our own
+  if(Date.now()-lastLocalWriteAt<3000){
+    console.log('[realtime] Skipping reload — recent local write');
+    return;
+  }
   if(realtimeReloadTimer)clearTimeout(realtimeReloadTimer);
   realtimeReloadTimer=setTimeout(async function(){
     try{
