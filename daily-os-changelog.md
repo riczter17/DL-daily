@@ -1,5 +1,13 @@
 # Daily OS Changelog
 
+## v4.1.2 (3 May 2026)
+
+### Bug Fix: OTP Login Code Length
+- Supabase auth tokens for email OTP are 8 digits in current Supabase versions, not 6 as initially assumed when v4.0s was built.
+- The login code input had `maxlength="6"` which silently truncated the 8-digit code to its first 6 digits, causing "Token has expired or is invalid" errors on verification.
+- Fix: input field now accepts up to 8 digits and validates either 6 or 8 digit codes (covers both old and new Supabase token formats).
+- UI labels updated to be format-agnostic: "Login code" instead of "6-digit Code", placeholder changed to "Enter code from email".
+
 ## v4.1.1 (3 May 2026)
 
 ### Energy Score Guide (fingertip reminders)
