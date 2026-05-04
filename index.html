@@ -212,7 +212,7 @@ var SEED_FOODS=[
   // Proteins
   {name:"Soft-boiled egg - Ya Kun",cal:70,protein:6,slot:"breakfast"},
   {name:"Hard-boiled egg - Home",cal:70,protein:6,slot:"any"},
-  {name:"Scrambled egg (minimal oil)",cal:75,protein:6,slot:"breakfast"},
+  {name:"Scrambled egg (minimal oil) - Home",cal:75,protein:6,slot:"breakfast"},
   {name:"Sunny side up",cal:90,protein:6,slot:"any"},
   {name:"Ajitsuke tamago - Donki",cal:70,protein:6,slot:"snack"},
   {name:"Chargrilled chicken, double garden salad - Aston's",cal:400,protein:45,slot:"lunch"},
@@ -268,7 +268,7 @@ function getSlotTotals(date,slot){
   return{cal:cal,protein:pro};
 }
 function getFoodsForSlot(slot){
-  return mealData.foods.filter(function(f){return f.is_active!==false&&(f.slot===slot||f.slot==='any')}).sort(function(a,b){return a.name.localeCompare(b.name)});
+  return mealData.foods.filter(function(f){return f.is_active!==false}).sort(function(a,b){return a.name.localeCompare(b.name)});
 }
 
 var DEF_TEMPLATES={
@@ -1417,7 +1417,11 @@ async function loadMealDataFromDb(){
 }
 
 async function seedFoodItems(){
-  if(!authUser||mealData.foods.length>0)return;
+  if(!authUser)return;
+  // Check DB directly to avoid re-seeding on cache miss
+  var countRes=await db.from('food_items').select('id',{count:'exact',head:true});
+  if(countRes.error){console.error('seedFoodItems count error:',countRes.error);return}
+  if(countRes.count>0)return;
   noteLocalWrite();
   var rows=SEED_FOODS.map(function(f){return{user_id:authUser.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,is_active:true}});
   var res=await db.from('food_items').insert(rows).select();
