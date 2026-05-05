@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.2.0";
+var VER="v4.3.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -250,9 +250,54 @@ var SEED_FOODS=[
 ];
 
 var mealData={foods:[],logs:{}};
-var mealView='home'; // 'home','slot','add_food'
+var mealView='home'; // 'home','slot','add_food','weekly'
 var mealSlot=null;
 var mealSearchQ='';
+var mealDate=null; // null = today
+var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
+
+function getMealDate(){return mealDate||todayStr()}
+function shiftMealDate(days){
+  var d=new Date(getMealDate()+'T00:00:00');
+  d.setDate(d.getDate()+days);
+  var s=d.toISOString().slice(0,10);
+  var today=todayStr();
+  if(s>today)return; // can't go future
+  // Check 2-day limit
+  var diff=Math.round((new Date(today+'T00:00:00')-new Date(s+'T00:00:00'))/(86400000));
+  if(diff>2)return;
+  mealDate=s===today?null:s;
+}
+function isToday(d){return d===todayStr()}
+function getMealDateLabel(d){
+  var today=todayStr();
+  if(d===today)return'Today';
+  var diff=Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(86400000));
+  if(diff===1)return'Yesterday';
+  if(diff===2)return'2 days ago';
+  return fd(d);
+}
+function getWeekDates(){
+  var today=new Date(todayStr()+'T00:00:00');
+  var day=today.getDay();
+  var mon=new Date(today);
+  mon.setDate(today.getDate()-(day===0?6:day-1));
+  var dates=[];
+  for(var i=0;i<7;i++){
+    var d=new Date(mon);
+    d.setDate(mon.getDate()+i);
+    dates.push(d.toISOString().slice(0,10));
+  }
+  return dates;
+}
+function getDayName(dateStr){
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return days[new Date(dateStr+'T00:00:00').getDay()];
+}
+function goMealDate(d){
+  mealDate=d===todayStr()?null:d;
+  view='meals';R();
+}
 
 function ldMeals(){try{var v=localStorage.getItem(MEAL_KS);return v?JSON.parse(v):null}catch(e){return null}}
 function svMeals(){try{localStorage.setItem(MEAL_KS,JSON.stringify(mealData))}catch(e){}}
@@ -497,6 +542,7 @@ function R(){
   else if(view==="meals")rMeals();
   else if(view==="meal_slot")rMealSlot();
   else if(view==="add_food")rAddFood();
+  else if(view==="meal_weekly")rWeeklyScorecard();
   // Append energy guide overlay if active
   if(energyGuideShown)$.innerHTML+=renderEnergyGuide();
 }
@@ -1512,10 +1558,20 @@ function mealBar(label,current,target,unit){
 }
 
 function rMeals(){
+  var d=getMealDate();
+  var totals=getMealTotals(d);
   var today=todayStr();
-  var totals=getMealTotals(today);
-  var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">\u{1F372} Meals</span><span style="width:40px"></span></div>';
-  h+='<div style="text-align:center;margin-bottom:16px"><span style="font-size:13px;color:var(--mut)">'+fd(today)+'</span></div>';
+  var diff=Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(86400000));
+  var canGoBack=diff<2;
+  var canGoFwd=d<today;
+  var h='<div class="nav"><button class="bk" onclick="view=\'home\';mealDate=null;R()">\u{2190} Back</button><span class="nav-t">\u{1F372} Meals</span><span style="width:40px"></span></div>';
+  // Date navigation
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:0 4px">';
+  h+='<button onclick="shiftMealDate(-1);R()" style="width:36px;height:36px;border-radius:8px;border:1px solid '+(canGoBack?'var(--bdr)':'transparent')+';background:'+(canGoBack?'var(--bg)':'transparent')+';color:'+(canGoBack?'var(--txt)':'var(--bg)')+';font-size:16px;cursor:'+(canGoBack?'pointer':'default')+'">'+(canGoBack?'\u{2039}':'')+'</button>';
+  h+='<div style="text-align:center"><div style="font-size:15px;font-weight:700">'+getMealDateLabel(d)+'</div>';
+  h+='<div style="font-size:11px;color:var(--dim)">'+fd(d)+'</div></div>';
+  h+='<button onclick="shiftMealDate(1);R()" style="width:36px;height:36px;border-radius:8px;border:1px solid '+(canGoFwd?'var(--bdr)':'transparent')+';background:'+(canGoFwd?'var(--bg)':'transparent')+';color:'+(canGoFwd?'var(--txt)':'var(--bg)')+';font-size:16px;cursor:'+(canGoFwd?'pointer':'default')+'">'+(canGoFwd?'\u{203A}':'')+'</button>';
+  h+='</div>';
   // Dashboard
   h+='<div class="card">';
   h+=mealBar('Calories',totals.cal,MEAL_TARGETS.cal,' kcal');
@@ -1523,8 +1579,8 @@ function rMeals(){
   h+='</div>';
   // Meal slots
   MEAL_SLOTS.forEach(function(slot){
-    var slotLogs=getMealLogs(today).filter(function(l){return l.slot===slot});
-    var st=getSlotTotals(today,slot);
+    var slotLogs=getMealLogs(d).filter(function(l){return l.slot===slot});
+    var st=getSlotTotals(d,slot);
     var slotLabel=slot.charAt(0).toUpperCase()+slot.slice(1);
     var tgt=MEAL_SLOT_TARGETS[slot];
     h+='<div class="card" style="cursor:pointer" onclick="mealSlot=\''+slot+'\';mealView=\'slot\';view=\'meal_slot\';mealSearchQ=\'\';R()">';
@@ -1550,28 +1606,33 @@ function rMeals(){
     }
     h+='</div>';
   });
-  // Recommendation nudge
-  var remaining=MEAL_TARGETS.protein-totals.protein;
-  if(remaining>10){
-    var suggestion='';
-    var now=new Date();var hour=now.getHours();
-    if(hour<11)suggestion='Consider a high-protein breakfast.';
-    else if(hour<15)suggestion='Pick a high P/C lunch option.';
-    else if(hour<17)suggestion='Grab a protein bar or eggs for snack.';
-    else suggestion=remaining<=22?'An Oatside Protein drink (20g) would close the gap.':'Add a shake with dinner tonight.';
-    h+='<div style="background:var(--acc-s);border:1px solid var(--acc);border-radius:10px;padding:12px 14px;margin-top:10px;font-size:12px;color:var(--acc)">';
-    h+='<strong>'+remaining+'g protein remaining.</strong> '+suggestion;
-    h+='</div>';
+  // Recommendation nudge - only for today
+  if(isToday(d)){
+    var remaining=MEAL_TARGETS.protein-totals.protein;
+    if(remaining>10){
+      var suggestion='';
+      var now=new Date();var hour=now.getHours();
+      if(hour<11)suggestion='Consider a high-protein breakfast.';
+      else if(hour<15)suggestion='Pick a high P/C lunch option.';
+      else if(hour<17)suggestion='Grab a protein bar or eggs for snack.';
+      else suggestion=remaining<=22?'An Oatside Protein drink (20g) would close the gap.':'Add a shake with dinner tonight.';
+      h+='<div style="background:var(--acc-s);border:1px solid var(--acc);border-radius:10px;padding:12px 14px;margin-top:10px;font-size:12px;color:var(--acc)">';
+      h+='<strong>'+remaining+'g protein remaining.</strong> '+suggestion;
+      h+='</div>';
+    }
   }
+  // Weekly scorecard button
+  h+='<button class="btn bo" style="margin-top:16px" onclick="view=\'meal_weekly\';R()">\u{1F4CA} Weekly Scorecard</button>';
   $.innerHTML=h;
 }
 
 function rMealSlot(){
-  var today=todayStr();
+  var d=getMealDate();
   var slotLabel=mealSlot.charAt(0).toUpperCase()+mealSlot.slice(1);
-  var slotLogs=getMealLogs(today).filter(function(l){return l.slot===mealSlot});
-  var st=getSlotTotals(today,mealSlot);
-  var h='<div class="nav"><button class="bk" onclick="view=\'meals\';mealView=\'home\';R()">\u{2190} Back</button><span class="nav-t">'+slotLabel+'</span><span style="width:40px"></span></div>';
+  var slotLogs=getMealLogs(d).filter(function(l){return l.slot===mealSlot});
+  var st=getSlotTotals(d,mealSlot);
+  var dateTag=isToday(d)?'':' <span style="font-size:11px;color:var(--dim);font-weight:400">'+getMealDateLabel(d)+'</span>';
+  var h='<div class="nav"><button class="bk" onclick="view=\'meals\';mealView=\'home\';R()">\u{2190} Back</button><span class="nav-t">'+slotLabel+dateTag+'</span><span style="width:40px"></span></div>';
   // Current items logged
   if(slotLogs.length){
     h+='<div class="card">';
@@ -1585,12 +1646,12 @@ function rMealSlot(){
       // Qty controls
       h+='<div style="display:flex;align-items:center;gap:6px;margin-left:10px;flex-shrink:0">';
       if(l.qty>1){
-        h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+today+'\','+(l.qty-1)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2212}</button>';
+        h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+d+'\','+(l.qty-1)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2212}</button>';
       }else{
-        h+='<button onclick="event.stopPropagation();mealLogDel(\''+l._id+'\',\''+today+'\')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--red);background:var(--red-s);color:var(--red);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2717}</button>';
+        h+='<button onclick="event.stopPropagation();mealLogDel(\''+l._id+'\',\''+d+'\')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--red);background:var(--red-s);color:var(--red);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2717}</button>';
       }
       h+='<span style="font-size:15px;font-weight:700;min-width:20px;text-align:center">'+l.qty+'</span>';
-      h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+today+'\','+(l.qty+1)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
+      h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+d+'\','+(l.qty+1)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
       h+='</div></div>';
     });
     h+='<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--acc);margin-top:4px;font-size:13px;font-weight:700">';
@@ -1649,25 +1710,27 @@ function rMealSlot(){
 
 function rAddFood(){
   var slotLabel=mealSlot?mealSlot.charAt(0).toUpperCase()+mealSlot.slice(1):'Any';
-  var h='<div class="nav"><button class="bk" onclick="view=\'meal_slot\';R()">\u{2190} Back</button><span class="nav-t">New Food Item</span><span style="width:40px"></span></div>';
+  var h='<div class="nav"><button class="bk" onclick="nfState={name:\'\',cal:\'\',pro:\'\',slot:\'any\',cat:\'Mains\'};view=\'meal_slot\';R()">\u{2190} Back</button><span class="nav-t">New Food Item</span><span style="width:40px"></span></div>';
   h+='<div class="card">';
   h+='<label class="lbl">Name</label>';
-  h+='<input class="fld" id="nfName" type="text" placeholder="e.g. Grilled salmon - Ichiban">';
+  h+='<input class="fld" id="nfName" type="text" placeholder="e.g. Grilled Salmon | ICHIBAN" value="'+nfState.name.replace(/"/g,'&quot;')+'" oninput="nfState.name=this.value">';
   h+='<label class="lbl mt12">Calories (per unit)</label>';
-  h+='<input class="fld" id="nfCal" type="number" inputmode="numeric" placeholder="e.g. 350">';
+  h+='<input class="fld" id="nfCal" type="number" inputmode="numeric" placeholder="e.g. 350" value="'+nfState.cal+'" oninput="nfState.cal=this.value">';
   h+='<label class="lbl mt12">Protein grams (per unit)</label>';
-  h+='<input class="fld" id="nfPro" type="number" inputmode="numeric" placeholder="e.g. 40">';
+  h+='<input class="fld" id="nfPro" type="number" inputmode="numeric" placeholder="e.g. 40" value="'+nfState.pro+'" oninput="nfState.pro=this.value">';
   h+='<label class="lbl mt12">Meal slot</label>';
-  h+='<select class="grp" id="nfSlot">';
-  h+='<option value="any" selected>Any meal</option>';
-  MEAL_SLOTS.forEach(function(s){
-    h+='<option value="'+s+'">'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>';
+  h+='<select class="grp" id="nfSlot" onchange="nfState.slot=this.value">';
+  ['any'].concat(MEAL_SLOTS).forEach(function(s){
+    var label=s==='any'?'Any meal':s.charAt(0).toUpperCase()+s.slice(1);
+    var sel=s===nfState.slot?' selected':'';
+    h+='<option value="'+s+'"'+sel+'>'+label+'</option>';
   });
   h+='</select>';
   h+='<label class="lbl mt12">Category</label>';
-  h+='<select class="grp" id="nfCat">';
+  h+='<select class="grp" id="nfCat" onchange="nfState.cat=this.value">';
   FOOD_CATS.forEach(function(c){
-    h+='<option value="'+c+'">'+c+'</option>';
+    var sel=c===nfState.cat?' selected':'';
+    h+='<option value="'+c+'"'+sel+'>'+c+'</option>';
   });
   h+='</select>';
   h+='<button class="btn ba mt16" onclick="saveNewFood()">Save Item</button>';
@@ -1689,6 +1752,7 @@ async function saveNewFood(){
   msg.textContent='Saving...';msg.style.color='var(--mut)';
   var result=await insertFoodItem(name,cal,pro,slot,cat);
   if(result){
+    nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
     view='meal_slot';mealSearchQ='';R();
   }else{
     msg.textContent='Failed to save.';msg.style.color='var(--red)';
@@ -1696,13 +1760,13 @@ async function saveNewFood(){
 }
 
 async function addMealItem(foodId){
-  var today=todayStr();
+  var d=getMealDate();
   // Check if already logged in this slot, if so increment qty
-  var existing=getMealLogs(today).find(function(l){return l.slot===mealSlot&&l.food_item_id===foodId});
+  var existing=getMealLogs(d).find(function(l){return l.slot===mealSlot&&l.food_item_id===foodId});
   if(existing){
-    await updateMealLogQty(existing._id,today,existing.qty+1);
+    await updateMealLogQty(existing._id,d,existing.qty+1);
   }else{
-    await insertMealLog(today,mealSlot,foodId,1);
+    await insertMealLog(d,mealSlot,foodId,1);
   }
   R();
 }
@@ -1716,6 +1780,83 @@ async function mealLogQty(logId,date,newQty){
 async function mealLogDel(logId,date){
   await deleteMealLog(logId,date);
   R();
+}
+
+function rWeeklyScorecard(){
+  var dates=getWeekDates();
+  var today=todayStr();
+  var h='<div class="nav"><button class="bk" onclick="view=\'meals\';R()">\u{2190} Back</button><span class="nav-t">\u{1F4CA} Weekly Scorecard</span><span style="width:40px"></span></div>';
+  // Week range label
+  h+='<div style="text-align:center;margin-bottom:16px"><span style="font-size:13px;color:var(--mut)">'+fd(dates[0])+' \u{2013} '+fd(dates[6])+'</span></div>';
+  // Compliance counters
+  var calHit=0,proHit=0,logged=0;
+  var weekCal=0,weekPro=0;
+  dates.forEach(function(d){
+    if(d>today)return;
+    var logs=getMealLogs(d);
+    if(!logs.length)return;
+    logged++;
+    var t=getMealTotals(d);
+    weekCal+=t.cal;weekPro+=t.protein;
+    if(t.cal>=MEAL_TARGETS.cal*0.85&&t.cal<=MEAL_TARGETS.cal*1.05)calHit++;
+    if(t.protein>=MEAL_TARGETS.protein)proHit++;
+  });
+  // Summary cards
+  h+='<div style="display:flex;gap:10px;margin-bottom:16px">';
+  h+='<div class="card" style="flex:1;text-align:center;padding:16px 10px">';
+  h+='<div style="font-size:28px;font-weight:800;color:'+(calHit>=5?'var(--grn)':calHit>=3?'var(--acc)':'var(--red)')+'">'+calHit+'<span style="font-size:16px;font-weight:400;color:var(--dim)">/'+logged+'</span></div>';
+  h+='<div style="font-size:11px;color:var(--mut);margin-top:4px">Cal in range</div>';
+  h+='</div>';
+  h+='<div class="card" style="flex:1;text-align:center;padding:16px 10px">';
+  h+='<div style="font-size:28px;font-weight:800;color:'+(proHit>=5?'var(--grn)':proHit>=3?'var(--acc)':'var(--red)')+'">'+proHit+'<span style="font-size:16px;font-weight:400;color:var(--dim)">/'+logged+'</span></div>';
+  h+='<div style="font-size:11px;color:var(--mut);margin-top:4px">Protein hit</div>';
+  h+='</div>';
+  h+='</div>';
+  // Averages
+  if(logged>0){
+    var avgCal=Math.round(weekCal/logged);
+    var avgPro=Math.round(weekPro/logged);
+    h+='<div class="card" style="padding:14px">';
+    h+='<div style="font-size:12px;font-weight:600;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Daily averages</div>';
+    h+='<div style="display:flex;justify-content:space-around">';
+    h+='<div style="text-align:center"><div style="font-size:20px;font-weight:700">'+avgCal+'</div><div style="font-size:11px;color:var(--dim)">kcal / '+MEAL_TARGETS.cal+'</div></div>';
+    h+='<div style="text-align:center"><div style="font-size:20px;font-weight:700">'+avgPro+'g</div><div style="font-size:11px;color:var(--dim)">protein / '+MEAL_TARGETS.protein+'g</div></div>';
+    h+='</div></div>';
+  }
+  // Daily breakdown
+  h+='<div class="sec"><h2 class="sec-t">Daily breakdown</h2></div>';
+  dates.forEach(function(d){
+    if(d>today)return;
+    var logs=getMealLogs(d);
+    var t=getMealTotals(d);
+    var dayName=getDayName(d);
+    var isT=d===today;
+    var hasData=logs.length>0;
+    var calOk=hasData&&t.cal>=MEAL_TARGETS.cal*0.85&&t.cal<=MEAL_TARGETS.cal*1.05;
+    var proOk=hasData&&t.protein>=MEAL_TARGETS.protein;
+    h+='<div class="card" style="padding:12px 14px;margin-bottom:6px;cursor:pointer;opacity:'+(hasData?'1':'0.5')+'" onclick="goMealDate(\''+d+'\')">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center">';
+    h+='<div>';
+    h+='<span style="font-size:14px;font-weight:700">'+dayName+'</span>';
+    h+='<span style="font-size:11px;color:var(--dim);margin-left:6px">'+d.slice(5)+'</span>';
+    if(isT)h+=' <span style="font-size:10px;color:var(--acc);font-weight:600">TODAY</span>';
+    h+='</div>';
+    if(hasData){
+      h+='<div style="display:flex;align-items:center;gap:8px">';
+      h+='<span style="font-size:12px;color:var(--dim)">'+t.cal+' kcal \u{00B7} '+t.protein+'g</span>';
+      h+='<span style="font-size:14px">'+(calOk?'\u{2705}':'\u{274C}')+'</span>';
+      h+='<span style="font-size:14px">'+(proOk?'\u{1F4AA}':'\u{26A0}\u{FE0F}')+'</span>';
+      h+='</div>';
+    }else{
+      h+='<span style="font-size:12px;color:var(--dim)">No data</span>';
+    }
+    h+='</div></div>';
+  });
+  // Legend
+  h+='<div style="padding:8px 4px;font-size:11px;color:var(--dim)">';
+  h+='\u{2705} Calories in range \u{00B7} \u{274C} Calories off target \u{00B7} \u{1F4AA} Protein hit \u{00B7} \u{26A0}\u{FE0F} Protein missed';
+  h+='</div>';
+  $.innerHTML=h;
 }
 
 async function loadDataFromDb(){

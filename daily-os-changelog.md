@@ -1,3 +1,45 @@
+## v4.3.0 (5 May 2026)
+
+### Previous Day Logging
+- Date navigation on meals home screen with left/right arrows
+- Navigate between Today, Yesterday, and 2 Days Ago
+- Date label shows "Today", "Yesterday", or "2 days ago" for clarity
+- Cannot navigate into the future or beyond 2 days back
+- Meal slot view shows date tag when logging for a past day
+- All logging, qty adjustment, and deletion work correctly for past dates
+
+### Weekly Scorecard
+- New view accessible via "Weekly Scorecard" button on meals home screen
+- Shows current week (Monday to Sunday) with two compliance summary cards:
+  - Calories in range (within 85%-105% of 1,800 target)
+  - Protein hit (at or above 145g target)
+- Daily averages for calories and protein across logged days
+- Daily breakdown showing each day's totals with status indicators
+- Tap any day to navigate directly to that day's meal log
+- Legend: green tick = calories in range, red cross = calories off target, muscle = protein hit, warning = protein missed
+- Days with no logged data shown as faded with "No data" label
+
+### Copy Refinements
+- Calorie allocation range shown per meal slot (e.g. "240-320 kcal")
+- Slot totals colour-coded: green when in range, red when exceeded
+- Food items grouped by category: Eggs, Mains, Carbs, Drinks, Snacks
+- Category selector added to "Add new food item" form
+- Rice labels standardised: "White Rice - Half", "Black Rice - Half", etc.
+- Location labels standardised with pipe + caps: "Item Name | LOCATION"
+- All food items set to slot "any" (no meal restrictions)
+- Protein nudge only appears for today, not past days
+- Placeholder in add food form updated to match label convention (e.g. "Grilled Salmon | ICHIBAN")
+
+### Bug Fixes
+- Fixed seed duplication: now checks DB count directly before seeding
+- Fixed slot filtering: all food items appear in every meal slot
+- Fixed qty controls using wrong date reference for past day logs
+- Fixed add food form losing input on mobile screen switch (form state now persists in JS variables)
+
+### Required: Run `cleanup-duplicates.sql` in Supabase SQL Editor (adds `cat` column, deduplicates, renames labels, sets categories)
+
+---
+
 ## v4.2.0 (4 May 2026)
 
 ### Meal Tracker
