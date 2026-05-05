@@ -1,3 +1,10 @@
+## v4.3.1 (5 May 2026)
+
+### Bug Fix
+- Fixed timezone bug in weekly scorecard and date navigation: `toISOString()` converts to UTC, causing dates to shift back one day in UTC+8 (Singapore). Replaced with local time formatting using `getFullYear()`/`getMonth()`/`getDate()`. Weekly scorecard now correctly shows Monday to Sunday.
+
+---
+
 ## v4.3.0 (5 May 2026)
 
 ### Previous Day Logging
