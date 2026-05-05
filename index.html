@@ -207,38 +207,46 @@ var CHECKLIST_DEF=[
 
 var MEAL_SLOTS=['breakfast','lunch','snack','dinner'];
 var MEAL_TARGETS={cal:1800,protein:145};
+var MEAL_SLOT_TARGETS={
+  breakfast:{min:240,max:320},
+  lunch:{min:400,max:500},
+  snack:{min:150,max:250},
+  dinner:{min:600,max:700}
+};
 var MEAL_KS='dos-meals';
+var FOOD_CATS=['Eggs','Mains','Carbs','Drinks','Snacks'];
 var SEED_FOODS=[
-  // Proteins
-  {name:"Soft-boiled egg - Ya Kun",cal:70,protein:6,slot:"breakfast"},
-  {name:"Hard-boiled egg - Home",cal:70,protein:6,slot:"any"},
-  {name:"Scrambled egg (minimal oil) - Home",cal:75,protein:6,slot:"breakfast"},
-  {name:"Sunny side up",cal:90,protein:6,slot:"any"},
-  {name:"Ajitsuke tamago - Donki",cal:70,protein:6,slot:"snack"},
-  {name:"Chargrilled chicken, double garden salad - Aston's",cal:400,protein:45,slot:"lunch"},
-  {name:"Rosemary chicken (grilled thigh) - Mdm Yap's",cal:220,protein:38,slot:"lunch"},
-  {name:"6-inch chicken breast double meat, loaded veg - Subway",cal:420,protein:40,slot:"lunch"},
-  {name:"3-inch flatbread chicken sausage egg cheese - Subway",cal:270,protein:14,slot:"breakfast"},
-  {name:"Steamed chicken - Thien Kee",cal:290,protein:36,slot:"lunch"},
-  {name:"Grilled chicken/fish + 1 veg - Raden Lina",cal:250,protein:24,slot:"lunch"},
-  {name:"Rotisserie chicken leg - Cold Storage/FairPrice",cal:300,protein:36,slot:"dinner"},
-  {name:"Chicken leg in soup - Home",cal:320,protein:38,slot:"dinner"},
-  {name:"Fish/chicken + 1 veg - Economy rice dabao",cal:280,protein:30,slot:"dinner"},
-  {name:"Thai chicken chop - Pung Pung",cal:290,protein:32,slot:"dinner"},
-  {name:"Protein bar (Quest/ONE)",cal:200,protein:20,slot:"snack"},
+  // Eggs
+  {name:"Soft-boiled Egg | YA KUN",cal:70,protein:6,slot:"any",cat:"Eggs"},
+  {name:"Hard-boiled Egg | HOME",cal:70,protein:6,slot:"any",cat:"Eggs"},
+  {name:"Scrambled Egg (minimal oil) | HOME",cal:75,protein:6,slot:"any",cat:"Eggs"},
+  {name:"Sunny Side Up",cal:90,protein:6,slot:"any",cat:"Eggs"},
+  {name:"Ajitsuke Tamago | DONKI",cal:70,protein:6,slot:"any",cat:"Eggs"},
+  // Mains
+  {name:"Chargrilled Chicken w/ Double Garden Salad | ASTON'S",cal:400,protein:45,slot:"any",cat:"Mains"},
+  {name:"Rosemary Chicken (Grilled Thigh) | MDM YAP'S",cal:220,protein:38,slot:"any",cat:"Mains"},
+  {name:"6-inch Chicken Breast Double Meat, Loaded Veg | SUBWAY",cal:420,protein:40,slot:"any",cat:"Mains"},
+  {name:"3-inch Flatbread Chicken Sausage Egg Cheese | SUBWAY",cal:270,protein:14,slot:"any",cat:"Mains"},
+  {name:"Steamed Chicken | THIEN KEE",cal:290,protein:36,slot:"any",cat:"Mains"},
+  {name:"Grilled Chicken/Fish + 1 Veg | RADEN LINA",cal:250,protein:24,slot:"any",cat:"Mains"},
+  {name:"Rotisserie Chicken Leg | COLD STORAGE/FAIRPRICE",cal:300,protein:36,slot:"any",cat:"Mains"},
+  {name:"Chicken Leg in Soup | HOME",cal:320,protein:38,slot:"any",cat:"Mains"},
+  {name:"Fish/Chicken + 1 Veg | ECONOMY RICE DABAO",cal:280,protein:30,slot:"any",cat:"Mains"},
+  {name:"Thai Chicken Chop | PUNG PUNG",cal:290,protein:32,slot:"any",cat:"Mains"},
   // Carbs
-  {name:"Half rice (white)",cal:130,protein:2,slot:"any"},
-  {name:"Full rice (white)",cal:260,protein:4,slot:"any"},
-  {name:"Half black rice",cal:140,protein:3,slot:"any"},
-  {name:"Toast (1 slice)",cal:80,protein:3,slot:"breakfast"},
-  {name:"Spring roll",cal:100,protein:2,slot:"any"},
-  // Drinks/Shakes
-  {name:"Oatside Protein drink",cal:170,protein:20,slot:"any"},
-  {name:"Syntha-6 shake",cal:220,protein:22,slot:"any"},
-  {name:"Kopi-o-kosong",cal:5,protein:0,slot:"breakfast"},
-  {name:"Americano",cal:10,protein:0,slot:"breakfast"},
+  {name:"White Rice - Half",cal:130,protein:2,slot:"any",cat:"Carbs"},
+  {name:"White Rice - Full",cal:260,protein:4,slot:"any",cat:"Carbs"},
+  {name:"Black Rice - Half",cal:140,protein:3,slot:"any",cat:"Carbs"},
+  {name:"Toast (1 Slice)",cal:80,protein:3,slot:"any",cat:"Carbs"},
+  {name:"Spring Roll",cal:100,protein:2,slot:"any",cat:"Carbs"},
+  // Drinks
+  {name:"Oatside Protein Drink",cal:170,protein:20,slot:"any",cat:"Drinks"},
+  {name:"Syntha-6 Shake",cal:220,protein:22,slot:"any",cat:"Drinks"},
+  {name:"Kopi-o-kosong",cal:5,protein:0,slot:"any",cat:"Drinks"},
+  {name:"Americano",cal:10,protein:0,slot:"any",cat:"Drinks"},
   // Snacks
-  {name:"Almonds/cashews (28g)",cal:165,protein:6,slot:"snack"}
+  {name:"Protein Bar (Quest/ONE)",cal:200,protein:20,slot:"any",cat:"Snacks"},
+  {name:"Almonds/Cashews (28g)",cal:165,protein:6,slot:"any",cat:"Snacks"}
 ];
 
 var mealData={foods:[],logs:{}};
@@ -1406,7 +1414,7 @@ async function loadMealDataFromDb(){
     db.from('meal_logs').select('*')
   ]);
   if(foodsRes.error||logsRes.error){console.error('loadMealData errors:',foodsRes.error,logsRes.error);return}
-  mealData.foods=foodsRes.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,is_active:f.is_active}});
+  mealData.foods=foodsRes.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,cat:f.cat||'Mains',is_active:f.is_active}});
   var logs={};
   logsRes.data.forEach(function(l){
     if(!logs[l.date])logs[l.date]=[];
@@ -1423,10 +1431,10 @@ async function seedFoodItems(){
   if(countRes.error){console.error('seedFoodItems count error:',countRes.error);return}
   if(countRes.count>0)return;
   noteLocalWrite();
-  var rows=SEED_FOODS.map(function(f){return{user_id:authUser.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,is_active:true}});
+  var rows=SEED_FOODS.map(function(f){return{user_id:authUser.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,cat:f.cat,is_active:true}});
   var res=await db.from('food_items').insert(rows).select();
   if(res.error){console.error('seedFoodItems error:',res.error);return}
-  mealData.foods=res.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,is_active:f.is_active}});
+  mealData.foods=res.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,cat:f.cat||'Mains',is_active:f.is_active}});
   svMeals();
 }
 
@@ -1461,13 +1469,13 @@ async function deleteMealLog(logId,date){
   svMeals();
 }
 
-async function insertFoodItem(name,cal,protein,slot){
+async function insertFoodItem(name,cal,protein,slot,cat){
   if(!authUser)return null;
   noteLocalWrite();
-  var payload={user_id:authUser.id,name:name,cal:cal,protein:protein,slot:slot,is_active:true};
+  var payload={user_id:authUser.id,name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',is_active:true};
   var res=await db.from('food_items').insert(payload).select().single();
   if(res.error){console.error('insertFoodItem error:',res.error);return null}
-  var newFood={_id:res.data.id,name:name,cal:cal,protein:protein,slot:slot,is_active:true};
+  var newFood={_id:res.data.id,name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',is_active:true};
   mealData.foods.push(newFood);
   svMeals();
   return newFood;
@@ -1518,11 +1526,14 @@ function rMeals(){
     var slotLogs=getMealLogs(today).filter(function(l){return l.slot===slot});
     var st=getSlotTotals(today,slot);
     var slotLabel=slot.charAt(0).toUpperCase()+slot.slice(1);
+    var tgt=MEAL_SLOT_TARGETS[slot];
     h+='<div class="card" style="cursor:pointer" onclick="mealSlot=\''+slot+'\';mealView=\'slot\';view=\'meal_slot\';mealSearchQ=\'\';R()">';
     h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(slotLogs.length?'10':'0')+'px">';
-    h+='<span style="font-size:15px;font-weight:700">'+slotLabel+'</span>';
+    h+='<div><span style="font-size:15px;font-weight:700">'+slotLabel+'</span>';
+    h+='<span style="font-size:11px;color:var(--dim);margin-left:8px">'+tgt.min+'\u{2013}'+tgt.max+' kcal</span></div>';
     if(slotLogs.length){
-      h+='<span style="font-size:12px;color:var(--mut)">'+st.cal+' kcal \u{00B7} '+st.protein+'g</span>';
+      var slotCol=st.cal>tgt.max?'var(--red)':st.cal>=tgt.min?'var(--grn)':'var(--mut)';
+      h+='<span style="font-size:12px;color:'+slotCol+'">'+st.cal+' kcal \u{00B7} '+st.protein+'g</span>';
     }else{
       h+='<span style="font-size:12px;color:var(--dim)">Tap to log</span>';
     }
@@ -1587,7 +1598,9 @@ function rMealSlot(){
     h+='</div>';
   }
   // Add food section
-  h+='<div class="sec"><h2 class="sec-t">Add item</h2></div>';
+  var tgt=MEAL_SLOT_TARGETS[mealSlot];
+  h+='<div class="sec"><h2 class="sec-t">Add item</h2>';
+  h+='<span style="font-size:11px;color:var(--dim)">Budget: '+tgt.min+'\u{2013}'+tgt.max+' kcal</span></div>';
   h+='<input class="fld" id="mealSearch" type="text" placeholder="Search foods..." value="'+mealSearchQ+'" oninput="mealSearchQ=this.value;R()" style="margin-bottom:10px">';
   var foods=getFoodsForSlot(mealSlot);
   if(mealSearchQ){
@@ -1595,15 +1608,35 @@ function rMealSlot(){
     foods=foods.filter(function(f){return f.name.toLowerCase().indexOf(q)>=0});
   }
   if(foods.length){
-    foods.forEach(function(f){
-      var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
-      h+='<div class="card" style="cursor:pointer;padding:12px 14px;margin-bottom:6px" onclick="addMealItem(\''+f._id+'\')">';
-      h+='<div style="display:flex;justify-content:space-between;align-items:center">';
-      h+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
-      h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g protein \u{00B7} P/C '+pcr+'</div></div>';
-      h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:8px;flex-shrink:0">+</span>';
-      h+='</div></div>';
+    // Group by category
+    FOOD_CATS.forEach(function(cat){
+      var catFoods=foods.filter(function(f){return(f.cat||'Mains')===cat});
+      if(!catFoods.length)return;
+      h+='<div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;padding-left:2px">'+cat+'</div>';
+      catFoods.forEach(function(f){
+        var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
+        h+='<div class="card" style="cursor:pointer;padding:12px 14px;margin-bottom:6px" onclick="addMealItem(\''+f._id+'\')">';
+        h+='<div style="display:flex;justify-content:space-between;align-items:center">';
+        h+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
+        h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g protein \u{00B7} P/C '+pcr+'</div></div>';
+        h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:8px;flex-shrink:0">+</span>';
+        h+='</div></div>';
+      });
     });
+    // Uncategorised items (user-added without category)
+    var uncatFoods=foods.filter(function(f){return!f.cat||FOOD_CATS.indexOf(f.cat)<0});
+    if(uncatFoods.length){
+      h+='<div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;padding-left:2px">Other</div>';
+      uncatFoods.forEach(function(f){
+        var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
+        h+='<div class="card" style="cursor:pointer;padding:12px 14px;margin-bottom:6px" onclick="addMealItem(\''+f._id+'\')">';
+        h+='<div style="display:flex;justify-content:space-between;align-items:center">';
+        h+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
+        h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g protein \u{00B7} P/C '+pcr+'</div></div>';
+        h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:8px;flex-shrink:0">+</span>';
+        h+='</div></div>';
+      });
+    }
   }else{
     h+='<div style="text-align:center;padding:20px;color:var(--dim);font-size:13px">No matching items</div>';
   }
@@ -1626,10 +1659,15 @@ function rAddFood(){
   h+='<input class="fld" id="nfPro" type="number" inputmode="numeric" placeholder="e.g. 40">';
   h+='<label class="lbl mt12">Meal slot</label>';
   h+='<select class="grp" id="nfSlot">';
-  h+='<option value="any">Any meal</option>';
+  h+='<option value="any" selected>Any meal</option>';
   MEAL_SLOTS.forEach(function(s){
-    var sel=s===mealSlot?' selected':'';
-    h+='<option value="'+s+'"'+sel+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>';
+    h+='<option value="'+s+'">'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>';
+  });
+  h+='</select>';
+  h+='<label class="lbl mt12">Category</label>';
+  h+='<select class="grp" id="nfCat">';
+  FOOD_CATS.forEach(function(c){
+    h+='<option value="'+c+'">'+c+'</option>';
   });
   h+='</select>';
   h+='<button class="btn ba mt16" onclick="saveNewFood()">Save Item</button>';
@@ -1643,12 +1681,13 @@ async function saveNewFood(){
   var cal=parseInt(document.getElementById('nfCal').value);
   var pro=parseInt(document.getElementById('nfPro').value);
   var slot=document.getElementById('nfSlot').value;
+  var cat=document.getElementById('nfCat').value;
   var msg=document.getElementById('nfMsg');
   if(!name){msg.textContent='Enter a name.';msg.style.color='var(--red)';return}
   if(isNaN(cal)||cal<0){msg.textContent='Enter valid calories.';msg.style.color='var(--red)';return}
   if(isNaN(pro)||pro<0){msg.textContent='Enter valid protein.';msg.style.color='var(--red)';return}
   msg.textContent='Saving...';msg.style.color='var(--mut)';
-  var result=await insertFoodItem(name,cal,pro,slot);
+  var result=await insertFoodItem(name,cal,pro,slot,cat);
   if(result){
     view='meal_slot';mealSearchQ='';R();
   }else{
