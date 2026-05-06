@@ -1,3 +1,19 @@
+## v4.4.0 (6 May 2026)
+
+### Edit Food Items
+- Pencil icon on each food item in the slot view opens edit form
+- Edit name, calories, protein, and category of any food item
+- Tapping the food item name/details still adds it to the meal (unchanged)
+- "Remove from food list" button with confirmation step to soft-delete items
+- Deactivated items hidden from food list; existing meal logs remain unaffected
+- Edit state variable (`editFoodId`) tracks which item is being edited
+
+### Technical
+- New DB helpers: `updateFoodItem()` and `deactivateFoodItem()` (soft delete via `is_active` flag)
+- Edit food route added to router (`edit_food` view)
+
+---
+
 ## v4.3.1 (5 May 2026)
 
 ### Bug Fix
