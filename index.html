@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.4.0";
+var VER="v4.5.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -249,13 +249,14 @@ var SEED_FOODS=[
   {name:"Almonds/Cashews (28g)",cal:165,protein:6,slot:"any",cat:"Snacks"}
 ];
 
-var mealData={foods:[],logs:{}};
+var mealData={foods:[],logs:{},weights:[]};
 var mealView='home'; // 'home','slot','add_food','weekly'
 var mealSlot=null;
 var mealSearchQ='';
 var mealDate=null; // null = today
 var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
 var editFoodId=null;
+var weightInputActive=false;
 
 function getMealDate(){return mealDate||todayStr()}
 function shiftMealDate(days){
@@ -1463,9 +1464,10 @@ async function saveChecklistDefsToDb(){
 
 async function loadMealDataFromDb(){
   if(!authUser)return;
-  var [foodsRes,logsRes]=await Promise.all([
+  var [foodsRes,logsRes,weightRes]=await Promise.all([
     db.from('food_items').select('*').eq('is_active',true),
-    db.from('meal_logs').select('*')
+    db.from('meal_logs').select('*'),
+    db.from('weight_logs').select('*').order('date',{ascending:false})
   ]);
   if(foodsRes.error||logsRes.error){console.error('loadMealData errors:',foodsRes.error,logsRes.error);return}
   mealData.foods=foodsRes.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,cat:f.cat||'Mains',is_active:f.is_active}});
@@ -1475,7 +1477,41 @@ async function loadMealDataFromDb(){
     logs[l.date].push({_id:l.id,slot:l.slot,food_item_id:l.food_item_id,qty:l.qty});
   });
   mealData.logs=logs;
+  if(!weightRes.error){
+    mealData.weights=weightRes.data.map(function(w){return{_id:w.id,date:w.date,weight:parseFloat(w.weight)}});
+  }
   svMeals();
+}
+
+function getLatestWeight(){
+  if(!mealData.weights||!mealData.weights.length)return null;
+  return mealData.weights[0]; // already sorted desc
+}
+function getPreviousWeight(){
+  if(!mealData.weights||mealData.weights.length<2)return null;
+  return mealData.weights[1];
+}
+function getWeightForDate(date){
+  if(!mealData.weights)return null;
+  return mealData.weights.find(function(w){return w.date===date})||null;
+}
+
+async function upsertWeightLog(date,weight){
+  if(!authUser)return false;
+  noteLocalWrite();
+  var existing=getWeightForDate(date);
+  if(existing){
+    var res=await db.from('weight_logs').update({weight:weight,updated_at:new Date().toISOString()}).eq('id',existing._id);
+    if(res.error){console.error('upsertWeightLog update error:',res.error);return false}
+    existing.weight=weight;
+  }else{
+    var res=await db.from('weight_logs').insert({user_id:authUser.id,date:date,weight:weight}).select().single();
+    if(res.error){console.error('upsertWeightLog insert error:',res.error);return false}
+    mealData.weights.unshift({_id:res.data.id,date:date,weight:parseFloat(res.data.weight)});
+    mealData.weights.sort(function(a,b){return b.date.localeCompare(a.date)});
+  }
+  svMeals();
+  return true;
 }
 
 async function seedFoodItems(){
@@ -1650,6 +1686,47 @@ function rMeals(){
       h+='<strong>'+remaining+'g protein remaining.</strong> '+suggestion;
       h+='</div>';
     }
+  }
+  // Weight card - only show on today
+  if(isToday(d)){
+    var latestW=getLatestWeight();
+    var prevW=getPreviousWeight();
+    h+='<div class="card" style="margin-top:12px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center">';
+    h+='<div><span style="font-size:15px;font-weight:700">\u{2696}\u{FE0F} Weight</span></div>';
+    if(latestW&&!weightInputActive){
+      var changeHtml='';
+      if(prevW){
+        var diff=latestW.weight-prevW.weight;
+        var diffStr=diff>0?'+'+diff.toFixed(1):diff.toFixed(1);
+        var diffCol=diff<0?'var(--grn)':diff>0?'var(--red)':'var(--dim)';
+        changeHtml=' <span style="font-size:12px;color:'+diffCol+'">'+diffStr+'kg</span>';
+      }
+      h+='<div style="text-align:right"><span style="font-size:18px;font-weight:700">'+latestW.weight.toFixed(1)+'</span><span style="font-size:12px;color:var(--dim)"> kg</span>'+changeHtml+'</div>';
+    }
+    h+='</div>';
+    if(weightInputActive){
+      var todayW=getWeightForDate(todayStr());
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-top:10px">';
+      h+='<input class="fld" id="weightInput" type="number" inputmode="decimal" step="0.1" placeholder="e.g. 78.5" value="'+(todayW?todayW.weight.toFixed(1):'')+'" style="flex:1;margin:0">';
+      h+='<button onclick="saveWeight()" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">Save</button>';
+      h+='<button onclick="weightInputActive=false;R()" style="background:var(--bg);color:var(--txt);border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer">\u{2717}</button>';
+      h+='</div>';
+    }else{
+      var todayW=getWeightForDate(todayStr());
+      h+='<div style="margin-top:8px">';
+      if(todayW){
+        h+='<span style="font-size:11px;color:var(--dim)">Logged today</span> ';
+        h+='<span style="font-size:11px;color:var(--acc);cursor:pointer" onclick="weightInputActive=true;R()">Edit</span>';
+      }else if(latestW){
+        h+='<span style="font-size:11px;color:var(--dim)">Last logged: '+fd(latestW.date)+'</span> ';
+        h+='<span style="font-size:11px;color:var(--acc);cursor:pointer" onclick="weightInputActive=true;R()">\u{00B7} Log today</span>';
+      }else{
+        h+='<span style="font-size:12px;color:var(--acc);cursor:pointer" onclick="weightInputActive=true;R()">Log your first weigh-in</span>';
+      }
+      h+='</div>';
+    }
+    h+='</div>';
   }
   // Weekly scorecard button
   h+='<button class="btn bo" style="margin-top:16px" onclick="view=\'meal_weekly\';R()">\u{1F4CA} Weekly Scorecard</button>';
@@ -1847,6 +1924,16 @@ async function doDeactivateFood(){
   if(ok){editFoodId=null;view='meal_slot';mealSearchQ='';R()}
 }
 
+async function saveWeight(){
+  var input=document.getElementById('weightInput');
+  if(!input)return;
+  var w=parseFloat(input.value);
+  if(isNaN(w)||w<=0||w>300){return}
+  w=Math.round(w*10)/10; // round to 1 decimal
+  var ok=await upsertWeightLog(todayStr(),w);
+  if(ok){weightInputActive=false;R()}
+}
+
 async function addMealItem(foodId){
   var d=getMealDate();
   // Check if already logged in this slot, if so increment qty
@@ -2030,6 +2117,7 @@ function setupRealtimeSync(){
     .on('postgres_changes',{event:'*',schema:'public',table:'templates',filter:'user_id=eq.'+authUser.id},triggerReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'food_items',filter:'user_id=eq.'+authUser.id},triggerMealReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'meal_logs',filter:'user_id=eq.'+authUser.id},triggerMealReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'weight_logs',filter:'user_id=eq.'+authUser.id},triggerMealReload)
     .subscribe(function(status){console.log('[realtime] Status:',status)});
 }
 

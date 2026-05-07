@@ -1,3 +1,23 @@
+## v4.5.0 (6 May 2026)
+
+### Weight Logging
+- Weight card on meals home screen (today view only)
+- Log weight in kg with one decimal place (e.g. 78.5)
+- Shows latest weight with date last logged
+- When 2+ entries exist, shows change from previous entry (green for loss, red for gain)
+- Edit today's entry by tapping "Edit", or log new entry via "Log today"
+- First-time prompt: "Log your first weigh-in"
+- Upsert logic: one entry per date, update if already logged
+
+### Database
+- New `weight_logs` table with unique constraint on (user_id, date)
+- RLS enabled, realtime subscription added
+- Weight data loaded alongside food items and meal logs
+
+### Required: Run `weight-logs-migration.sql` in Supabase SQL Editor before deploying
+
+---
+
 ## v4.4.0 (6 May 2026)
 
 ### Edit Food Items
