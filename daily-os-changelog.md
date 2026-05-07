@@ -1,3 +1,16 @@
+## v4.5.1 (7 May 2026)
+
+### Body Composition Import
+- Imported 554 historical body composition records from Omron HBF-222T scale (Jan 2024 to May 2026)
+- Extended `weight_logs` table with 6 new columns: body_fat_pct, visceral_fat, skeletal_muscle_pct, resting_metabolism, bmi, body_age
+- Weight card now shows body composition metrics (body fat %, muscle %, visceral fat, BMI) when data is available
+- Deduplication: 5 duplicate-date entries removed during import, keeping first entry per day
+- ON CONFLICT upsert: safely merges with any existing manual entries
+
+### Required: Run `body-composition-import.sql` in Supabase SQL Editor (adds columns + imports 554 records)
+
+---
+
 ## v4.5.0 (6 May 2026)
 
 ### Weight Logging

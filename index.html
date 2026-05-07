@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.5.0";
+var VER="v4.5.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -1478,7 +1478,7 @@ async function loadMealDataFromDb(){
   });
   mealData.logs=logs;
   if(!weightRes.error){
-    mealData.weights=weightRes.data.map(function(w){return{_id:w.id,date:w.date,weight:parseFloat(w.weight)}});
+    mealData.weights=weightRes.data.map(function(w){return{_id:w.id,date:w.date,weight:parseFloat(w.weight),body_fat_pct:w.body_fat_pct?parseFloat(w.body_fat_pct):null,visceral_fat:w.visceral_fat||null,skeletal_muscle_pct:w.skeletal_muscle_pct?parseFloat(w.skeletal_muscle_pct):null,resting_metabolism:w.resting_metabolism||null,bmi:w.bmi?parseFloat(w.bmi):null,body_age:w.body_age||null}});
   }
   svMeals();
 }
@@ -1705,6 +1705,15 @@ function rMeals(){
       h+='<div style="text-align:right"><span style="font-size:18px;font-weight:700">'+latestW.weight.toFixed(1)+'</span><span style="font-size:12px;color:var(--dim)"> kg</span>'+changeHtml+'</div>';
     }
     h+='</div>';
+    // Body composition details
+    if(latestW&&!weightInputActive&&latestW.body_fat_pct){
+      h+='<div style="display:flex;justify-content:space-around;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr)">';
+      if(latestW.body_fat_pct)h+='<div style="text-align:center"><div style="font-size:15px;font-weight:700">'+latestW.body_fat_pct.toFixed(1)+'%</div><div style="font-size:10px;color:var(--dim)">Body fat</div></div>';
+      if(latestW.skeletal_muscle_pct)h+='<div style="text-align:center"><div style="font-size:15px;font-weight:700">'+latestW.skeletal_muscle_pct.toFixed(1)+'%</div><div style="font-size:10px;color:var(--dim)">Muscle</div></div>';
+      if(latestW.visceral_fat)h+='<div style="text-align:center"><div style="font-size:15px;font-weight:700">'+latestW.visceral_fat+'</div><div style="font-size:10px;color:var(--dim)">Visceral</div></div>';
+      if(latestW.bmi)h+='<div style="text-align:center"><div style="font-size:15px;font-weight:700">'+latestW.bmi.toFixed(1)+'</div><div style="font-size:10px;color:var(--dim)">BMI</div></div>';
+      h+='</div>';
+    }
     if(weightInputActive){
       var todayW=getWeightForDate(todayStr());
       h+='<div style="display:flex;align-items:center;gap:8px;margin-top:10px">';
