@@ -1,3 +1,24 @@
+## v4.6.0 (7 May 2026)
+
+### Weight History Chart
+- New "Weight History" view accessible via link in weight card (visible when 2+ entries exist)
+- SVG line chart showing full weight trajectory from Jan 2024 to present
+- Weekly averages plotted for clean, readable line
+- Gradient fill under the curve
+- Month labels on x-axis with year markers on January
+- Grid lines and y-axis weight labels (auto-scaled)
+- Green dot marks lowest weight, accent dot marks current weight
+- Summary cards: Current, Lowest, Highest
+- Key dates card with exact values and dates for lowest, highest, current
+- Distance from lowest and highest shown at bottom
+
+### Sides Category
+- Added "Sides" food category for items like sambal chilli, stir-fried vegetables, condiments
+- Full category list now: Eggs, Mains, Sides, Carbs, Drinks, Snacks
+- Existing items can be re-categorised using the edit food feature (pencil icon)
+
+---
+
 ## v4.5.1 (7 May 2026)
 
 ### Body Composition Import
