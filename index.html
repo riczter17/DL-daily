@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.6.1";
+var VER="v4.6.2";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -318,7 +318,7 @@ function getMealTotals(date){
     var food=mealData.foods.find(function(f){return f._id===l.food_item_id});
     if(food){cal+=food.cal*l.qty;pro+=food.protein*l.qty}
   });
-  return{cal:cal,protein:pro};
+  return{cal:Math.round(cal),protein:Math.round(pro)};
 }
 function getSlotTotals(date,slot){
   var logs=getMealLogs(date).filter(function(l){return l.slot===slot});
@@ -327,7 +327,7 @@ function getSlotTotals(date,slot){
     var food=mealData.foods.find(function(f){return f._id===l.food_item_id});
     if(food){cal+=food.cal*l.qty;pro+=food.protein*l.qty}
   });
-  return{cal:cal,protein:pro};
+  return{cal:Math.round(cal),protein:Math.round(pro)};
 }
 function getFoodsForSlot(slot){
   return mealData.foods.filter(function(f){return f.is_active!==false}).sort(function(a,b){return a.name.localeCompare(b.name)});
@@ -1476,7 +1476,7 @@ async function loadMealDataFromDb(){
   var logs={};
   logsRes.data.forEach(function(l){
     if(!logs[l.date])logs[l.date]=[];
-    logs[l.date].push({_id:l.id,slot:l.slot,food_item_id:l.food_item_id,qty:l.qty});
+    logs[l.date].push({_id:l.id,slot:l.slot,food_item_id:l.food_item_id,qty:parseFloat(l.qty)});
   });
   mealData.logs=logs;
   if(!weightRes.error){
@@ -1667,8 +1667,8 @@ function rMeals(){
         var food=mealData.foods.find(function(f){return f._id===l.food_item_id});
         if(!food)return;
         h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--bdr);font-size:13px">';
-        h+='<span style="color:var(--txt)">'+food.name+(l.qty>1?' x'+l.qty:'')+'</span>';
-        h+='<span style="color:var(--dim);white-space:nowrap;margin-left:8px">'+(food.cal*l.qty)+' / '+(food.protein*l.qty)+'g</span>';
+        h+='<span style="color:var(--txt)">'+food.name+(l.qty!==1?' x'+l.qty:'')+'</span>';
+        h+='<span style="color:var(--dim);white-space:nowrap;margin-left:8px">'+Math.round(food.cal*l.qty)+' / '+Math.round(food.protein*l.qty)+'g</span>';
         h+='</div>';
       });
     }
@@ -1766,16 +1766,16 @@ function rMealSlot(){
       if(!food)return;
       h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;'+(idx>0?'border-top:1px solid var(--bdr)':'')+'">';
       h+='<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+food.name+'</div>';
-      h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+(food.cal*l.qty)+' kcal \u{00B7} '+(food.protein*l.qty)+'g protein</div></div>';
+      h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+Math.round(food.cal*l.qty)+' kcal \u{00B7} '+Math.round(food.protein*l.qty)+'g protein</div></div>';
       // Qty controls
       h+='<div style="display:flex;align-items:center;gap:6px;margin-left:10px;flex-shrink:0">';
-      if(l.qty>1){
-        h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+d+'\','+(l.qty-1)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2212}</button>';
+      if(l.qty>0.5){
+        h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+d+'\','+(l.qty-0.5)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2212}</button>';
       }else{
         h+='<button onclick="event.stopPropagation();mealLogDel(\''+l._id+'\',\''+d+'\')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--red);background:var(--red-s);color:var(--red);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2717}</button>';
       }
-      h+='<span style="font-size:15px;font-weight:700;min-width:20px;text-align:center">'+l.qty+'</span>';
-      h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+d+'\','+(l.qty+1)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
+      h+='<span style="font-size:15px;font-weight:700;min-width:24px;text-align:center">'+l.qty+'</span>';
+      h+='<button onclick="event.stopPropagation();mealLogQty(\''+l._id+'\',\''+d+'\','+(l.qty+0.5)+')" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
       h+='</div></div>';
     });
     h+='<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--acc);margin-top:4px;font-size:13px;font-weight:700">';
@@ -1964,7 +1964,7 @@ async function addMealItem(foodId){
 }
 
 async function mealLogQty(logId,date,newQty){
-  if(newQty<1)return;
+  if(newQty<0.5)return;
   await updateMealLogQty(logId,date,newQty);
   R();
 }

@@ -1,3 +1,17 @@
+## v4.6.2 (8 May 2026)
+
+### Decimal Quantities
+- Quantity +/- buttons now step by 0.5 instead of 1
+- Supports half portions (e.g. 0.5 for half a plate of chicken rice)
+- First tap to add an item still logs qty 1; use - button to reduce to 0.5
+- Decrement to 0.5 shows remove (X) button; cannot go below 0.5
+- Calorie and protein totals rounded to whole numbers for clean display
+- DB column `qty` changed from integer to numeric(4,1)
+
+### Required: Run `decimal-qty-migration.sql` in Supabase SQL Editor before deploying
+
+---
+
 ## v4.6.1 (7 May 2026)
 
 ### Weight History Time Range Selector
