@@ -1,3 +1,17 @@
+## v4.6.1 (7 May 2026)
+
+### Weight History Time Range Selector
+- Four range buttons above chart: 3M, 6M, 1Y, All
+- Default view is 3M (last 3 months) for actionable mobile-friendly view
+- Chart auto-scales y-axis and x-axis labels to fit selected range
+- Adaptive x-axis label density: shows every month for 3M/6M/1Y, every other month for All
+- Range change indicator shows weight difference from start to end of selected period (e.g. "-1.2 kg")
+- Y-axis grid step adapts to range: 1kg steps for tight ranges, 5kg for wide ranges
+- Summary cards always show all-time stats; chart reflects selected range
+- Fixed timezone bug in weekly aggregation within chart (was still using toISOString)
+
+---
+
 ## v4.6.0 (7 May 2026)
 
 ### Weight History Chart

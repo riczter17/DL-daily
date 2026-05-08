@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.6.0";
+var VER="v4.6.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -257,6 +257,7 @@ var mealDate=null; // null = today
 var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
 var editFoodId=null;
 var weightInputActive=false;
+var weightRange='3m'; // '3m','6m','1y','all'
 
 function getMealDate(){return mealDate||todayStr()}
 function shiftMealDate(days){
@@ -2051,20 +2052,33 @@ function rWeeklyScorecard(){
 }
 
 function rWeightHistory(){
-  var weights=mealData.weights.slice().reverse(); // oldest first
-  if(!weights.length){view='meals';R();return}
+  var allWeights=mealData.weights.slice().reverse(); // oldest first
+  if(!allWeights.length){view='meals';R();return}
+  
+  // Filter by range
+  var weights=allWeights;
+  var today=new Date(todayStr()+'T00:00:00');
+  if(weightRange!=='all'){
+    var cutoff=new Date(today);
+    if(weightRange==='3m')cutoff.setMonth(cutoff.getMonth()-3);
+    else if(weightRange==='6m')cutoff.setMonth(cutoff.getMonth()-6);
+    else if(weightRange==='1y')cutoff.setFullYear(cutoff.getFullYear()-1);
+    var cutoffStr=cutoff.getFullYear()+'-'+String(cutoff.getMonth()+1).padStart(2,'0')+'-'+String(cutoff.getDate()).padStart(2,'0');
+    weights=allWeights.filter(function(w){return w.date>=cutoffStr});
+  }
+  if(weights.length<1)weights=allWeights; // fallback if range has no data
   
   var h='<div class="nav"><button class="bk" onclick="view=\'meals\';R()">\u{2190} Back</button><span class="nav-t">\u{1F4C8} Weight History</span><span style="width:40px"></span></div>';
   
-  // Summary stats
-  var current=weights[weights.length-1];
-  var allW=weights.map(function(w){return w.weight});
+  // Summary stats (always from all data)
+  var current=allWeights[allWeights.length-1];
+  var allW=allWeights.map(function(w){return w.weight});
   var minW=Math.min.apply(null,allW);
   var maxW=Math.max.apply(null,allW);
-  var minEntry=weights.find(function(w){return w.weight===minW});
-  var maxEntry=weights.find(function(w){return w.weight===maxW});
+  var minEntry=allWeights.find(function(w){return w.weight===minW});
+  var maxEntry=allWeights.find(function(w){return w.weight===maxW});
   
-  h+='<div style="display:flex;gap:8px;margin-bottom:16px">';
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
   h+='<div class="card" style="flex:1;text-align:center;padding:12px 8px">';
   h+='<div style="font-size:20px;font-weight:800">'+current.weight.toFixed(1)+'</div>';
   h+='<div style="font-size:10px;color:var(--dim)">Current (kg)</div></div>';
@@ -2075,6 +2089,31 @@ function rWeightHistory(){
   h+='<div style="font-size:20px;font-weight:800;color:var(--red)">'+maxW.toFixed(1)+'</div>';
   h+='<div style="font-size:10px;color:var(--dim)">Highest</div></div>';
   h+='</div>';
+  
+  // Range selector
+  var ranges=[{k:'3m',l:'3M'},{k:'6m',l:'6M'},{k:'1y',l:'1Y'},{k:'all',l:'All'}];
+  h+='<div style="display:flex;gap:6px;margin-bottom:14px;justify-content:center">';
+  ranges.forEach(function(r){
+    var active=r.k===weightRange;
+    h+='<button onclick="weightRange=\''+r.k+'\';R()" style="padding:6px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:'+(active?'none':'1px solid var(--bdr)')+';background:'+(active?'var(--acc)':'var(--bg)')+';color:'+(active?'#fff':'var(--txt)')+'">'+r.l+'</button>';
+  });
+  h+='</div>';
+  
+  // Range stats
+  var rangeW=weights.map(function(w){return w.weight});
+  var rangeMin=Math.min.apply(null,rangeW);
+  var rangeMax=Math.max.apply(null,rangeW);
+  var rangeFirst=weights[0];
+  var rangeLast=weights[weights.length-1];
+  var rangeChange=rangeLast.weight-rangeFirst.weight;
+  var rangeChangeStr=rangeChange>0?'+'+rangeChange.toFixed(1):rangeChange.toFixed(1);
+  var rangeChangeCol=rangeChange<0?'var(--grn)':rangeChange>0?'var(--red)':'var(--dim)';
+  
+  if(weightRange!=='all'){
+    h+='<div style="text-align:center;margin-bottom:14px;font-size:12px">';
+    h+='<span style="color:var(--dim)">Change: </span><span style="color:'+rangeChangeCol+';font-weight:700">'+rangeChangeStr+' kg</span>';
+    h+='</div>';
+  }
   
   // SVG Chart
   var cw=360,ch=220,pad={t:20,r:15,b:40,l:40};
@@ -2088,7 +2127,10 @@ function rWeightHistory(){
     var day=d.getDay();
     var monDate=new Date(d);
     monDate.setDate(d.getDate()-(day===0?6:day-1));
-    var monStr=monDate.toISOString().slice(0,10);
+    var yyyy=monDate.getFullYear();
+    var mm=String(monDate.getMonth()+1).padStart(2,'0');
+    var dd=String(monDate.getDate()).padStart(2,'0');
+    var monStr=yyyy+'-'+mm+'-'+dd;
     if(monStr!==weekBucket){
       if(weekBucket&&weekCount>0)weekly.push({date:weekBucket,weight:weekSum/weekCount});
       weekBucket=monStr;weekSum=w.weight;weekCount=1;
@@ -2103,80 +2145,78 @@ function rWeightHistory(){
     $.innerHTML=h;return;
   }
   
-  var wMin=Math.floor(minW-2);
-  var wMax=Math.ceil(maxW+2);
-  var wRange=wMax-wMin;
+  var chartMin=Math.floor(rangeMin-1);
+  var chartMax=Math.ceil(rangeMax+1);
+  var wRange=chartMax-chartMin;
   
   var firstDate=new Date(weekly[0].date+'T00:00:00').getTime();
   var lastDate=new Date(weekly[weekly.length-1].date+'T00:00:00').getTime();
-  var dateRange=lastDate-firstDate;
+  var dateRange=lastDate-firstDate||1;
   
   function xPos(dateStr){
     var t=new Date(dateStr+'T00:00:00').getTime();
     return pad.l+((t-firstDate)/dateRange)*pw;
   }
   function yPos(w){
-    return pad.t+ph-((w-wMin)/wRange)*ph;
+    return pad.t+ph-((w-chartMin)/wRange)*ph;
   }
   
-  // Build polyline points
   var points=weekly.map(function(w){return xPos(w.date).toFixed(1)+','+yPos(w.weight).toFixed(1)}).join(' ');
+  var areaPoints=pad.l.toFixed(1)+','+yPos(chartMin).toFixed(1)+' '+points+' '+(pad.l+pw).toFixed(1)+','+yPos(chartMin).toFixed(1);
   
-  // Build gradient area
-  var areaPoints=pad.l.toFixed(1)+','+yPos(wMin).toFixed(1)+' '+points+' '+(pad.l+pw).toFixed(1)+','+yPos(wMin).toFixed(1);
-  
-  h+='<div class="card" style="padding:12px 8px;overflow-x:auto">';
+  h+='<div class="card" style="padding:12px 8px">';
   h+='<svg viewBox="0 0 '+cw+' '+ch+'" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">';
   
-  // Gradient fill
   h+='<defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">';
   h+='<stop offset="0%" stop-color="var(--acc)" stop-opacity="0.3"/>';
   h+='<stop offset="100%" stop-color="var(--acc)" stop-opacity="0.02"/>';
   h+='</linearGradient></defs>';
   
   // Grid lines and y-axis labels
-  var step=wRange>30?10:wRange>15?5:2;
-  for(var g=Math.ceil(wMin/step)*step;g<=wMax;g+=step){
+  var step=wRange>20?5:wRange>10?2:1;
+  for(var g=Math.ceil(chartMin/step)*step;g<=chartMax;g+=step){
     var gy=yPos(g);
     h+='<line x1="'+pad.l+'" y1="'+gy.toFixed(1)+'" x2="'+(cw-pad.r)+'" y2="'+gy.toFixed(1)+'" stroke="var(--bdr)" stroke-width="0.5"/>';
     h+='<text x="'+(pad.l-4)+'" y="'+(gy+3).toFixed(1)+'" text-anchor="end" fill="var(--dim)" font-size="9">'+g+'</text>';
   }
   
-  // Month labels on x-axis
+  // Month labels on x-axis - adaptive density
   var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var seenMonths={};
+  var monthSkip=weightRange==='all'?2:weightRange==='1y'?1:1;
+  var monthIdx=0;
   weekly.forEach(function(w){
     var d=new Date(w.date+'T00:00:00');
     var key=d.getFullYear()+'-'+d.getMonth();
     if(!seenMonths[key]){
       seenMonths[key]=true;
+      monthIdx++;
+      if(monthIdx%monthSkip!==0&&weightRange==='all')return;
       var x=xPos(w.date);
       var label=months[d.getMonth()];
-      // Show year on Jan or first entry
       if(d.getMonth()===0||Object.keys(seenMonths).length===1)label+='\u{2019}'+String(d.getFullYear()).slice(2);
-      h+='<text x="'+x.toFixed(1)+'" y="'+(ch-pad.b+14)+'" text-anchor="middle" fill="var(--dim)" font-size="8">'+label+'</text>';
+      h+='<text x="'+x.toFixed(1)+'" y="'+(ch-pad.b+14)+'" text-anchor="middle" fill="var(--dim)" font-size="9">'+label+'</text>';
       h+='<line x1="'+x.toFixed(1)+'" y1="'+(ch-pad.b)+'" x2="'+x.toFixed(1)+'" y2="'+(ch-pad.b+3)+'" stroke="var(--dim)" stroke-width="0.5"/>';
     }
   });
   
-  // Area fill
   h+='<polygon points="'+areaPoints+'" fill="url(#wg)"/>';
-  
-  // Line
   h+='<polyline points="'+points+'" fill="none" stroke="var(--acc)" stroke-width="1.5" stroke-linejoin="round"/>';
   
   // Current weight dot
   var lastPt=weekly[weekly.length-1];
-  h+='<circle cx="'+xPos(lastPt.date).toFixed(1)+'" cy="'+yPos(lastPt.weight).toFixed(1)+'" r="3" fill="var(--acc)"/>';
+  h+='<circle cx="'+xPos(lastPt.date).toFixed(1)+'" cy="'+yPos(lastPt.weight).toFixed(1)+'" r="3.5" fill="var(--acc)"/>';
   
-  // Lowest weight dot
+  // Lowest weight dot in range
   var lowestWeekly=weekly.reduce(function(a,b){return a.weight<b.weight?a:b});
-  h+='<circle cx="'+xPos(lowestWeekly.date).toFixed(1)+'" cy="'+yPos(lowestWeekly.weight).toFixed(1)+'" r="3" fill="var(--grn)"/>';
+  if(lowestWeekly!==lastPt){
+    h+='<circle cx="'+xPos(lowestWeekly.date).toFixed(1)+'" cy="'+yPos(lowestWeekly.weight).toFixed(1)+'" r="3" fill="var(--grn)"/>';
+  }
   
   h+='</svg>';
   h+='</div>';
   
-  // Key dates
+  // Key dates (always from all data)
   h+='<div class="card" style="padding:14px">';
   h+='<div style="font-size:12px;font-weight:600;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Key dates</div>';
   h+='<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">';
@@ -2188,7 +2228,6 @@ function rWeightHistory(){
   h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--bdr);font-size:13px">';
   h+='<span style="color:var(--dim)">Current</span>';
   h+='<span><span style="font-weight:700">'+current.weight.toFixed(1)+' kg</span> <span style="color:var(--dim)">'+fd(current.date)+'</span></span></div>';
-  // Change from lowest
   var fromLowest=current.weight-minW;
   var fromHighest=current.weight-maxW;
   h+='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr);font-size:12px;color:var(--dim)">';
