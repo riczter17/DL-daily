@@ -1,3 +1,10 @@
+## v4.6.3 (8 May 2026)
+
+### Bug Fix
+- Fixed deactivated food items disappearing from past meal logs. App now loads all food items (active and inactive) from the DB. Selection list still only shows active items. Past logs correctly display deactivated items.
+
+---
+
 ## v4.6.2 (8 May 2026)
 
 ### Decimal Quantities
