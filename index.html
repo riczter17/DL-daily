@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.8.0";
+var VER="v4.8.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -557,6 +557,8 @@ function R(){
   else if(view==="checklist_edit")rChecklistEdit();
   else if(view==="my_activities")rMyActivities();
   else if(view==="goals_edit")rGoalsEdit();
+  else if(view==="assessment")rAssessment();
+  else if(view==="manage")rManage();
   else if(view==="meals")rMeals();
   else if(view==="meal_slot")rMealSlot();
   else if(view==="add_food")rAddFood();
@@ -680,7 +682,7 @@ function rHome(){
   var maintCount=goals.filter(function(g){return g.status==='maintained'}).length;
   var goalsCollapsed=collapseState.goals;
   h+='<div class="sec" style="margin-top:14px">';
-  h+='<div onclick="toggleSection(\'goals\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0">';
+  h+='<div onclick="toggleSection(\'goals\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 4px">';
   h+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut)">'+(goalsCollapsed?'\u{25B8}':'\u{25BE}')+'</span><h2 class="sec-t" style="margin-bottom:0">Goals</h2></div>';
   h+='<div style="font-size:11px;color:var(--dim)">'+activeCount+' active \u{00B7} '+maintCount+' maintained</div>';
   h+='</div>';
@@ -709,11 +711,12 @@ function rHome(){
   var td=getDay(today);
   if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today \u{00B7} '+fd(today)+'</button>';}
   else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+fd(today)+' \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
+  h+='<button class="btn ba" style="margin-top:8px" onclick="view=\'meals\';mealView=\'home\';R()">\u{1F372} Meal Tracker</button>';
 
   // UPCOMING section (collapsible)
   var upcomingCollapsed=collapseState.upcoming;
   h+='<div class="sec">';
-  h+='<div onclick="toggleSection(\'upcoming\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0">';
+  h+='<div onclick="toggleSection(\'upcoming\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 4px">';
   h+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut)">'+(upcomingCollapsed?'\u{25B8}':'\u{25BE}')+'</span><h2 class="sec-t" style="margin-bottom:0">Upcoming</h2></div>';
   h+='<div style="font-size:11px;color:var(--dim)">Next 7 days</div>';
   h+='</div>';
@@ -736,7 +739,7 @@ function rHome(){
   // PAST section (collapsible)
   var pastCollapsed=collapseState.past;
   h+='<div class="sec">';
-  h+='<div onclick="toggleSection(\'past\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0">';
+  h+='<div onclick="toggleSection(\'past\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 4px">';
   h+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut)">'+(pastCollapsed?'\u{25B8}':'\u{25BE}')+'</span><h2 class="sec-t" style="margin-bottom:0">Past</h2></div>';
   h+='<div style="font-size:11px;color:var(--dim)">Last 4 weeks</div>';
   h+='</div>';
@@ -772,20 +775,8 @@ function rHome(){
     });
   }
   h+='</div>';
-  h+='<button class="btn bo" onclick="view=\'summary\';R()">\u{1F4CA} Weekly Summary</button>';
-  h+='<button class="btn bo" onclick="view=\'meals\';mealView=\'home\';R()">\u{1F372} Meal Tracker</button>';
-  h+='<button class="btn bo" onclick="view=\'templates\';R()">\u{2699}\u{FE0F} Edit Templates</button>';
-  h+='<button class="btn bo" onclick="view=\'checklist_edit\';R()">\u{2705} Edit Checklist</button>';
-  h+='<button class="btn bo" onclick="view=\'my_activities\';R()">\u{2728} My Activities</button>';
-  h+='<div class="card mt16"><h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:8px">DATA</h3><div class="ei-row">';
-  h+='<button class="bsm" onclick="doExp()">\u{1F4E4} Export</button>';
-  h+='<label class="bsm-m" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer">\u{1F4E5} Import<input type="file" accept=".json" style="display:none" onchange="doImp(event)"></label>';
-  h+='<button class="bsm-m" onclick="doReset()">\u{1F5D1} Reset</button>';
-  h+='</div></div>';
-  if(authUser){
-    h+='<div style="text-align:center;margin-top:24px;font-size:11px;color:var(--dim)">Signed in as '+authUser.email+'</div>';
-    h+='<div style="text-align:center;margin-top:8px"><button onclick="doSignOut()" style="background:transparent;border:none;color:var(--dim);font-size:11px;text-decoration:underline;cursor:pointer;padding:4px 8px">Sign out</button></div>';
-  }
+  h+='<button class="btn bo" onclick="view=\'assessment\';R()">\u{1F4CA} Assessment</button>';
+  h+='<button class="btn bo" onclick="view=\'manage\';R()">\u{2699}\u{FE0F} Manage</button>';
   $.innerHTML=h;
 }
 
@@ -1165,6 +1156,31 @@ function rGoalsEdit(){
     });
   }
   h+='<button class="btn bo mt16" onclick="goalAdd()">+ Add goal</button>';
+  $.innerHTML=h;
+}
+
+function rAssessment(){
+  var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">Assessment</span><span style="width:40px"></span></div>';
+  h+='<div class="card" style="margin-bottom:14px;background:var(--acc-s);border:1px solid var(--acc)"><p style="font-size:12px;line-height:1.5;color:var(--txt);margin:0">Review and reflect. Assessments help you see patterns across days and weeks.</p></div>';
+  h+='<button class="btn bo" onclick="view=\'summary\';R()">\u{1F4CA} Weekly Summary</button>';
+  h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-top:24px;line-height:1.5">More assessments coming.<br>Monthly review, goal reflection, sleep trends, and more.</div>';
+  $.innerHTML=h;
+}
+
+function rManage(){
+  var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">Manage</span><span style="width:40px"></span></div>';
+  h+='<button class="btn bo" onclick="view=\'templates\';R()">\u{2699}\u{FE0F} Edit Templates</button>';
+  h+='<button class="btn bo" onclick="view=\'checklist_edit\';R()">\u{2705} Edit Checklist</button>';
+  h+='<button class="btn bo" onclick="view=\'my_activities\';R()">\u{2728} My Activities</button>';
+  h+='<div class="card mt16"><h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:8px">DATA</h3><div class="ei-row">';
+  h+='<button class="bsm" onclick="doExp()">\u{1F4E4} Export</button>';
+  h+='<label class="bsm-m" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer">\u{1F4E5} Import<input type="file" accept=".json" style="display:none" onchange="doImp(event)"></label>';
+  h+='<button class="bsm-m" onclick="doReset()">\u{1F5D1} Reset</button>';
+  h+='</div></div>';
+  if(authUser){
+    h+='<div style="text-align:center;margin-top:24px;font-size:11px;color:var(--dim)">Signed in as '+authUser.email+'</div>';
+    h+='<div style="text-align:center;margin-top:8px"><button onclick="doSignOut()" style="background:transparent;border:none;color:var(--dim);font-size:11px;text-decoration:underline;cursor:pointer;padding:4px 8px">Sign out</button></div>';
+  }
   $.innerHTML=h;
 }
 

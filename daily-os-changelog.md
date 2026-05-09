@@ -1,3 +1,16 @@
+## v4.8.1 (9 May 2026)
+
+### Home Screen Restructure
+- Meal Tracker elevated to primary CTA (visual weight equal to Today). The two daily logging actions now sit together at the top of the home screen.
+- New "Assessment" hub view, accessed via secondary button. Initially contains Weekly Summary; designed to grow with monthly review, goal reflection, sleep trends, etc.
+- New "Manage" view, accessed via secondary button. Consolidates Edit Templates, Edit Checklist, My Activities, DATA card (Export/Import/Reset), and Sign out (with email footer).
+- Removed from home screen: standalone Edit Templates / Edit Checklist / My Activities buttons, DATA card, "Signed in as" footer, Sign out link, standalone Weekly Summary button.
+
+### Padding Fix
+- Section header padding adjusted from `10px 0` to `10px 4px` for slight inset breathing room. Applied to all three collapsible sections (Goals, Upcoming, Past) for consistency.
+
+---
+
 ## v4.8.0 (9 May 2026)
 
 ### Goals
