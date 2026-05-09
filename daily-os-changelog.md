@@ -1,3 +1,11 @@
+## v4.8.2 (9 May 2026)
+
+### Spacing Fix
+- Added 16px top margin to the Today button to give breathing room from the Goals section above it (when expanded, the Edit goals button was sitting right against Today).
+- Increased Edit goals button top margin from 4px to 8px for slightly better separation from the last goal card.
+
+---
+
 ## v4.8.1 (9 May 2026)
 
 ### Home Screen Restructure
