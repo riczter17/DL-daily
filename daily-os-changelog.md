@@ -1,3 +1,39 @@
+## v4.10.0 (9 May 2026)
+
+### Goals-Checklist Mapping
+- Each checklist item can now be mapped to one primary goal (1:1) or left as Others
+- Goals displayed with G-numbering throughout: G1, G2, G3... based on order_index
+- Checklist items displayed with priority numbering: 1, 2, 3... based on order_index
+- Note added in Edit Checklist: "Order represents priority, not when in the day to do them."
+
+### Edit Checklist View
+- Items grouped visually by goal: G1 group, G2 group, ..., Others at bottom
+- Each item shows its priority number (#1, #2, etc.) as a small accent pill
+- Per-item dropdown to set goal: "Others" or any of the named goals
+- New items default to Others; user maps them after adding
+
+### Day View Checklist
+- Each item shows priority number prefix: "1. Meditation"
+- Each item shows mapped goal as small tag on the right: G1, G2, Others, etc.
+- Mapped tags use accent colour, Others uses dim style
+
+### Home Goals Cards
+- Each goal card now shows habit count: "2 habits", "1 habit", "0 habits"
+- Surfaces gaps where a goal has no supporting checklist items
+
+### Database
+- Added `goal_id` column to `checklist_items` (nullable FK to goals.id, ON DELETE SET NULL)
+- Index on goal_id for efficient lookups
+- Initial mappings seeded based on obvious matches:
+  - Meditation, 30 min unstructured time → G2 (Mental health practices)
+  - Good breakfast, Good lunch, Good dinner, 8k steps → G4 (Physical health)
+  - Phone down by 10pm, In bed by 10:30pm → G1 (Sleep)
+- All seed mappings can be re-mapped in Edit Checklist
+
+### Required: Run `checklist-goals-migration.sql` in Supabase SQL Editor before deploying
+
+---
+
 ## v4.9.0 (9 May 2026)
 
 ### Hydration Tracking
