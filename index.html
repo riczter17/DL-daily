@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.6.3";
+var VER="v4.7.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -258,6 +258,7 @@ var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
 var editFoodId=null;
 var weightInputActive=false;
 var weightRange='3m'; // '3m','6m','1y','all'
+var collapsedCats={};
 
 function getMealDate(){return mealDate||todayStr()}
 function shiftMealDate(days){
@@ -1797,32 +1798,46 @@ function rMealSlot(){
     FOOD_CATS.forEach(function(cat){
       var catFoods=foods.filter(function(f){return(f.cat||'Mains')===cat});
       if(!catFoods.length)return;
-      h+='<div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;padding-left:2px">'+cat+'</div>';
-      catFoods.forEach(function(f){
-        var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
-        h+='<div class="card" style="padding:12px 14px;margin-bottom:6px;display:flex;align-items:center">';
-        h+='<div style="flex:1;min-width:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">';
-        h+='<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
-        h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g protein \u{00B7} P/C '+pcr+'</div></div>';
-        h+='<button onclick="event.stopPropagation();editFoodId=\''+f._id+'\';view=\'edit_food\';R()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--dim);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:6px;flex-shrink:0">\u{270E}</button>';
-        h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:6px;flex-shrink:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">+</span>';
-        h+='</div>';
-      });
+      var isCollapsed=collapsedCats[cat]&&!mealSearchQ;
+      var arrow=isCollapsed?'\u{25B8}':'\u{25BE}';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="collapsedCats[\''+cat+'\']=!collapsedCats[\''+cat+'\'];R()">';
+      h+='<span style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">'+cat+' <span style="font-weight:400;color:var(--dim)">('+catFoods.length+')</span></span>';
+      h+='<span style="font-size:12px;color:var(--dim)">'+arrow+'</span>';
+      h+='</div>';
+      if(!isCollapsed){
+        catFoods.forEach(function(f){
+          var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
+          h+='<div class="card" style="padding:12px 14px;margin-bottom:6px;display:flex;align-items:center">';
+          h+='<div style="flex:1;min-width:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">';
+          h+='<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
+          h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g protein \u{00B7} P/C '+pcr+'</div></div>';
+          h+='<button onclick="event.stopPropagation();editFoodId=\''+f._id+'\';view=\'edit_food\';R()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--dim);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:6px;flex-shrink:0">\u{270E}</button>';
+          h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:6px;flex-shrink:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">+</span>';
+          h+='</div>';
+        });
+      }
     });
-    // Uncategorised items (user-added without category)
+    // Uncategorised items
     var uncatFoods=foods.filter(function(f){return!f.cat||FOOD_CATS.indexOf(f.cat)<0});
     if(uncatFoods.length){
-      h+='<div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;padding-left:2px">Other</div>';
-      uncatFoods.forEach(function(f){
-        var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
-        h+='<div class="card" style="padding:12px 14px;margin-bottom:6px;display:flex;align-items:center">';
-        h+='<div style="flex:1;min-width:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">';
-        h+='<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
-        h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g protein \u{00B7} P/C '+pcr+'</div></div>';
-        h+='<button onclick="event.stopPropagation();editFoodId=\''+f._id+'\';view=\'edit_food\';R()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--dim);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:6px;flex-shrink:0">\u{270E}</button>';
-        h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:6px;flex-shrink:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">+</span>';
-        h+='</div>';
-      });
+      var isCollapsed=collapsedCats['Other']&&!mealSearchQ;
+      var arrow=isCollapsed?'\u{25B8}':'\u{25BE}';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="collapsedCats[\'Other\']=!collapsedCats[\'Other\'];R()">';
+      h+='<span style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Other <span style="font-weight:400;color:var(--dim)">('+uncatFoods.length+')</span></span>';
+      h+='<span style="font-size:12px;color:var(--dim)">'+arrow+'</span>';
+      h+='</div>';
+      if(!isCollapsed){
+        uncatFoods.forEach(function(f){
+          var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
+          h+='<div class="card" style="padding:12px 14px;margin-bottom:6px;display:flex;align-items:center">';
+          h+='<div style="flex:1;min-width:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">';
+          h+='<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
+          h+='<div style="font-size:11px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g protein \u{00B7} P/C '+pcr+'</div></div>';
+          h+='<button onclick="event.stopPropagation();editFoodId=\''+f._id+'\';view=\'edit_food\';R()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--dim);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:6px;flex-shrink:0">\u{270E}</button>';
+          h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:6px;flex-shrink:0;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">+</span>';
+          h+='</div>';
+        });
+      }
     }
   }else{
     h+='<div style="text-align:center;padding:20px;color:var(--dim);font-size:13px">No matching items</div>';

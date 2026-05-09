@@ -1,3 +1,15 @@
+## v4.7.0 (9 May 2026)
+
+### Collapsible Food Categories
+- Category headers in the food list are now tappable to expand/collapse
+- Shows item count per category (e.g. "MAINS (8)")
+- Arrow indicator: ▸ collapsed, ▾ expanded
+- Collapse state persists within the session (resets on app reload)
+- When searching, all categories auto-expand to show search results regardless of collapse state
+- Reduces scrolling when food list grows large
+
+---
+
 ## v4.6.3 (8 May 2026)
 
 ### Bug Fix
