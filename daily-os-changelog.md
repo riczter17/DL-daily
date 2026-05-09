@@ -1,3 +1,37 @@
+## v4.9.0 (9 May 2026)
+
+### Hydration Tracking
+- New hydration card inside Meal Tracker home, sitting alongside calories and protein as the third daily intake metric
+- Cup library: each cup has a name and ml value. Tap a cup button to log a drink. Logs are timestamped.
+- Seeded 7 cups: Water 200ml, Water 350ml, Coffee 250ml, Protein powder 250ml, Oatside protein 250ml, Office mug 750ml, Home mug 1.1L
+- Daily target: 3500ml (editable)
+- "Undo last" button to revert the most recent log without confirmation
+- Progress bar with ✓ tick when target hit (no animation, no streaks, no surveillance pressure)
+- ml field represents hydration contribution, not strictly volume. Most beverages count 1:1 (modern research). Set lower if you want to discount specific drinks (e.g. coffee at 80%).
+
+### Cup Management View
+- Accessed via ⚙ Manage in the hydration card
+- Edit daily target
+- Per cup: rename, edit ml, reorder, delete
+- "+ Add cup" button
+- Deleting a cup is a soft delete (is_active=false) so historical logs are preserved
+
+### Hydration History View
+- Accessed from Assessment hub
+- **This Week**: 7-day strip, each day marked ✓ (hit) or — (missed). Hits/total summary below.
+- **Last 30 Days**: heatmap-style 10x3 grid, days marked hit/missed. Percentage hit shown.
+- **Last 12 Months**: monthly bars showing % days target hit per month. Bar colour: green (≥70%), grapemist (≥40%), grey otherwise.
+- Goal-attainment focused, not amount focused. No daily totals or averages displayed in history (per design intent: consistency tracking, not optimisation).
+
+### Database
+- New `hydration_cups` table: id, user_id, name, ml, order_index, is_active, timestamps. RLS + realtime.
+- New `hydration_logs` table: id, user_id, date, ml, cup_id (nullable, ON DELETE SET NULL), created_at. RLS + realtime.
+- New `hydration_settings` table: user_id PK, daily_target_ml, updated_at. RLS + realtime.
+
+### Required: Run `hydration-migration.sql` in Supabase SQL Editor before deploying
+
+---
+
 ## v4.8.2 (9 May 2026)
 
 ### Spacing Fix

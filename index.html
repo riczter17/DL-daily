@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.8.2";
+var VER="v4.9.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -249,7 +249,7 @@ var SEED_FOODS=[
   {name:"Almonds/Cashews (28g)",cal:165,protein:6,slot:"any",cat:"Snacks"}
 ];
 
-var mealData={foods:[],logs:{},weights:[]};
+var mealData={foods:[],logs:{},weights:[],hydrationCups:[],hydrationLogs:[],hydrationTarget:3500};
 var mealView='home'; // 'home','slot','add_food','weekly'
 var mealSlot=null;
 var mealSearchQ='';
@@ -259,6 +259,7 @@ var editFoodId=null;
 var weightInputActive=false;
 var weightRange='3m'; // '3m','6m','1y','all'
 var collapsedCats={};
+var hydrationView='home'; // 'home' or 'cups'
 
 function getMealDate(){return mealDate||todayStr()}
 function shiftMealDate(days){
@@ -565,6 +566,8 @@ function R(){
   else if(view==="edit_food")rEditFood();
   else if(view==="meal_weekly")rWeeklyScorecard();
   else if(view==="weight_history")rWeightHistory();
+  else if(view==="hydration_cups")rHydrationCups();
+  else if(view==="hydration_history")rHydrationHistory();
   // Append energy guide overlay if active
   if(energyGuideShown)$.innerHTML+=renderEnergyGuide();
 }
@@ -1163,6 +1166,7 @@ function rAssessment(){
   var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">Assessment</span><span style="width:40px"></span></div>';
   h+='<div class="card" style="margin-bottom:14px;background:var(--acc-s);border:1px solid var(--acc)"><p style="font-size:12px;line-height:1.5;color:var(--txt);margin:0">Review and reflect. Assessments help you see patterns across days and weeks.</p></div>';
   h+='<button class="btn bo" onclick="view=\'summary\';R()">\u{1F4CA} Weekly Summary</button>';
+  h+='<button class="btn bo" onclick="view=\'hydration_history\';R()">\u{1F4A7} Hydration History</button>';
   h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-top:24px;line-height:1.5">More assessments coming.<br>Monthly review, goal reflection, sleep trends, and more.</div>';
   $.innerHTML=h;
 }
@@ -1653,10 +1657,13 @@ function goalToggleStatus(idx){
 
 async function loadMealDataFromDb(){
   if(!authUser)return;
-  var [foodsRes,logsRes,weightRes]=await Promise.all([
+  var [foodsRes,logsRes,weightRes,cupsRes,hydroLogsRes,hydroSettingsRes]=await Promise.all([
     db.from('food_items').select('*'),
     db.from('meal_logs').select('*'),
-    db.from('weight_logs').select('*').order('date',{ascending:false})
+    db.from('weight_logs').select('*').order('date',{ascending:false}),
+    db.from('hydration_cups').select('*').eq('is_active',true).order('order_index'),
+    db.from('hydration_logs').select('*').order('created_at',{ascending:false}),
+    db.from('hydration_settings').select('*').maybeSingle()
   ]);
   if(foodsRes.error||logsRes.error){console.error('loadMealData errors:',foodsRes.error,logsRes.error);return}
   mealData.foods=foodsRes.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,cat:f.cat||'Mains',is_active:f.is_active}});
@@ -1669,7 +1676,143 @@ async function loadMealDataFromDb(){
   if(!weightRes.error){
     mealData.weights=weightRes.data.map(function(w){return{_id:w.id,date:w.date,weight:parseFloat(w.weight),body_fat_pct:w.body_fat_pct?parseFloat(w.body_fat_pct):null,visceral_fat:w.visceral_fat||null,skeletal_muscle_pct:w.skeletal_muscle_pct?parseFloat(w.skeletal_muscle_pct):null,resting_metabolism:w.resting_metabolism||null,bmi:w.bmi?parseFloat(w.bmi):null,body_age:w.body_age||null}});
   }
+  if(!cupsRes.error){
+    mealData.hydrationCups=cupsRes.data.map(function(c){return{_id:c.id,name:c.name,ml:c.ml,order_index:c.order_index}});
+  }
+  if(!hydroLogsRes.error){
+    mealData.hydrationLogs=hydroLogsRes.data.map(function(l){return{_id:l.id,date:l.date,ml:l.ml,cup_id:l.cup_id,created_at:l.created_at}});
+  }
+  if(!hydroSettingsRes.error&&hydroSettingsRes.data){
+    mealData.hydrationTarget=hydroSettingsRes.data.daily_target_ml;
+  }
   svMeals();
+}
+
+// === HYDRATION HELPERS ===
+
+function getHydrationByDate(dateStr){
+  if(!mealData.hydrationLogs)return 0;
+  return mealData.hydrationLogs.filter(function(l){return l.date===dateStr}).reduce(function(s,l){return s+l.ml},0);
+}
+function isHydrationGoalHit(dateStr){
+  return getHydrationByDate(dateStr)>=(mealData.hydrationTarget||3500);
+}
+function getLatestHydrationLogForDate(dateStr){
+  if(!mealData.hydrationLogs)return null;
+  var todayLogs=mealData.hydrationLogs.filter(function(l){return l.date===dateStr});
+  if(!todayLogs.length)return null;
+  // Sorted desc by created_at already
+  return todayLogs[0];
+}
+
+// === HYDRATION DB HELPERS ===
+
+async function logHydrationDrink(cupId,ml,dateStr){
+  if(!authUser)return;
+  noteLocalWrite();
+  var payload={user_id:authUser.id,date:dateStr,ml:ml,cup_id:cupId};
+  var res=await db.from('hydration_logs').insert(payload).select().single();
+  if(res.error){console.error('logHydrationDrink error:',res.error);return}
+  mealData.hydrationLogs.unshift({_id:res.data.id,date:res.data.date,ml:res.data.ml,cup_id:res.data.cup_id,created_at:res.data.created_at});
+  svMeals();
+}
+
+async function undoLastHydrationLog(dateStr){
+  if(!authUser)return;
+  var last=getLatestHydrationLogForDate(dateStr);
+  if(!last)return;
+  noteLocalWrite();
+  var res=await db.from('hydration_logs').delete().eq('id',last._id);
+  if(res.error){console.error('undoLastHydrationLog error:',res.error);return}
+  var idx=mealData.hydrationLogs.findIndex(function(l){return l._id===last._id});
+  if(idx>=0)mealData.hydrationLogs.splice(idx,1);
+  svMeals();
+}
+
+async function insertHydrationCup(cup){
+  if(!authUser)return;
+  noteLocalWrite();
+  var payload={user_id:authUser.id,name:cup.name,ml:cup.ml,order_index:cup.order_index};
+  var res=await db.from('hydration_cups').insert(payload).select().single();
+  if(res.error){console.error('insertHydrationCup error:',res.error);return}
+  cup._id=res.data.id;
+}
+
+async function updateHydrationCup(cup){
+  if(!authUser||!cup._id)return;
+  noteLocalWrite();
+  var payload={name:cup.name,ml:cup.ml,order_index:cup.order_index,updated_at:new Date().toISOString()};
+  var res=await db.from('hydration_cups').update(payload).eq('id',cup._id);
+  if(res.error)console.error('updateHydrationCup error:',res.error);
+}
+
+async function deleteHydrationCup(cupId){
+  if(!authUser||!cupId)return;
+  noteLocalWrite();
+  // Soft delete via is_active = false to preserve historical log references
+  var res=await db.from('hydration_cups').update({is_active:false,updated_at:new Date().toISOString()}).eq('id',cupId);
+  if(res.error)console.error('deleteHydrationCup error:',res.error);
+}
+
+async function reorderHydrationCups(){
+  if(!authUser)return;
+  noteLocalWrite();
+  var updates=mealData.hydrationCups.map(function(c,idx){
+    c.order_index=idx+1;
+    if(c._id)return db.from('hydration_cups').update({order_index:idx+1,updated_at:new Date().toISOString()}).eq('id',c._id);
+    return null;
+  }).filter(function(p){return p});
+  await Promise.all(updates);
+}
+
+async function setHydrationTarget(ml){
+  if(!authUser)return;
+  noteLocalWrite();
+  // Upsert via insert with ON CONFLICT through update fallback
+  var payload={user_id:authUser.id,daily_target_ml:ml,updated_at:new Date().toISOString()};
+  var res=await db.from('hydration_settings').upsert(payload).select().single();
+  if(res.error){console.error('setHydrationTarget error:',res.error);return}
+  mealData.hydrationTarget=ml;
+  svMeals();
+}
+
+// Cup management UI handlers
+function cupAdd(){
+  var newCup={name:'New cup',ml:250,order_index:mealData.hydrationCups.length+1};
+  mealData.hydrationCups.push(newCup);
+  svMeals();
+  insertHydrationCup(newCup);
+  R();
+}
+function cupUpd(idx,field,value){
+  var c=mealData.hydrationCups[idx];if(!c)return;
+  if(field==='ml'){var n=parseInt(value,10);if(isNaN(n)||n<=0)return;c.ml=n;}
+  else c[field]=value;
+  svMeals();
+  updateHydrationCup(c);
+  R();
+}
+function cupDel(idx){
+  var c=mealData.hydrationCups[idx];if(!c)return;
+  if(!confirm('Delete cup "'+c.name+'"? Past logs are preserved.'))return;
+  var cupId=c._id;
+  mealData.hydrationCups.splice(idx,1);
+  svMeals();
+  if(cupId)deleteHydrationCup(cupId);
+  R();
+}
+function cupMove(idx,dir){
+  var arr=mealData.hydrationCups;var j=idx+dir;
+  if(j<0||j>=arr.length)return;
+  var tmp=arr[idx];arr[idx]=arr[j];arr[j]=tmp;
+  svMeals();
+  reorderHydrationCups();
+  R();
+}
+function targetUpd(value){
+  var n=parseInt(value,10);if(isNaN(n)||n<=0||n>10000)return;
+  setHydrationTarget(n);
+  R();
 }
 
 function getLatestWeight(){
@@ -1831,6 +1974,39 @@ function rMeals(){
   h+='<div class="card">';
   h+=mealBar('Calories',totals.cal,MEAL_TARGETS.cal,' kcal');
   h+=mealBar('Protein',totals.protein,MEAL_TARGETS.protein,'g');
+  h+='</div>';
+  // Hydration card
+  var hMl=getHydrationByDate(d);
+  var hTgt=mealData.hydrationTarget||3500;
+  var hPct=Math.min(100,Math.round(hMl/hTgt*100));
+  var hHit=hMl>=hTgt;
+  var lastLog=getLatestHydrationLogForDate(d);
+  h+='<div class="card">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+  h+='<div style="font-size:13px;font-weight:600;color:var(--mut)">\u{1F4A7} Hydration</div>';
+  h+='<div style="font-size:13px;color:var(--txt)"><span style="font-weight:600">'+(hMl/1000).toFixed(2)+'</span><span style="font-size:11px;color:var(--dim)"> / '+(hTgt/1000).toFixed(1)+'L</span>'+(hHit?' <span style="color:var(--grn);font-weight:700">\u{2713}</span>':'')+'</div>';
+  h+='</div>';
+  // Progress bar
+  h+='<div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-bottom:10px"><div style="height:100%;background:'+(hHit?'var(--grn)':'var(--acc)')+';width:'+hPct+'%;transition:width 0.3s"></div></div>';
+  // Cup buttons (2-column grid)
+  if(mealData.hydrationCups&&mealData.hydrationCups.length){
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+    mealData.hydrationCups.forEach(function(c){
+      h+='<button onclick="logHydrationDrink(\''+c._id+'\','+c.ml+',\''+d+'\').then(function(){R()})" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--bdr);color:var(--txt);font-size:12px;font-weight:500;cursor:pointer;text-align:left">'+escapeHtml(c.name)+'</button>';
+    });
+    h+='</div>';
+    // Footer: undo + manage
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr)">';
+    if(lastLog){
+      h+='<button onclick="undoLastHydrationLog(\''+d+'\').then(function(){R()})" style="background:transparent;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:4px 0">\u{21BA} Undo last</button>';
+    }else{
+      h+='<span></span>';
+    }
+    h+='<button onclick="hydrationView=\'cups\';view=\'hydration_cups\';R()" style="background:transparent;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:4px 0">\u{2699}\u{FE0F} Manage</button>';
+    h+='</div>';
+  }else{
+    h+='<div style="text-align:center;padding:12px;color:var(--dim);font-size:12px">No cups yet. <span style="color:var(--acc);cursor:pointer" onclick="hydrationView=\'cups\';view=\'hydration_cups\';R()">Add some</span></div>';
+  }
   h+='</div>';
   // Meal slots
   MEAL_SLOTS.forEach(function(slot){
@@ -2439,6 +2615,133 @@ function rWeightHistory(){
   $.innerHTML=h;
 }
 
+function rHydrationCups(){
+  var h='<div class="nav"><button class="bk" onclick="view=\'meals\';mealView=\'home\';R()">\u{2190} Back</button><span class="nav-t">Manage Cups</span><span style="width:40px"></span></div>';
+  // Daily target editor
+  h+='<div class="card" style="margin-bottom:14px">';
+  h+='<label class="lbl">Daily target (ml)</label>';
+  h+='<div style="display:flex;align-items:center;gap:8px">';
+  h+='<input class="fld" type="number" inputmode="numeric" value="'+(mealData.hydrationTarget||3500)+'" min="500" max="10000" step="100" onblur="targetUpd(this.value)" style="flex:1;margin:0">';
+  h+='<span style="font-size:13px;color:var(--mut);white-space:nowrap">= '+((mealData.hydrationTarget||3500)/1000).toFixed(1)+'L</span>';
+  h+='</div>';
+  h+='</div>';
+  // Info card
+  h+='<div class="card" style="margin-bottom:14px;background:var(--acc-s);border:1px solid var(--acc)"><p style="font-size:12px;line-height:1.5;color:var(--txt);margin:0">ml is what counts toward your hydration target. Most beverages hydrate ~1:1 with water (modern research). To discount specific drinks (e.g. coffee at 80%), set ml lower than actual volume.</p></div>';
+  // Cups list
+  var cups=mealData.hydrationCups||[];
+  if(cups.length===0){
+    h+='<div class="card" style="text-align:center;padding:24px;color:var(--dim)">No cups yet. Add one below.</div>';
+  }else{
+    cups.forEach(function(c,i){
+      h+='<div class="card" style="margin-bottom:8px;padding:12px">';
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+      h+='<div style="display:flex;flex-direction:column;gap:2px">';
+      h+='<button style="background:transparent;border:none;color:var(--dim);font-size:11px;padding:2px;cursor:pointer" onclick="cupMove('+i+',-1)" '+(i===0?'disabled':'')+'>\u{25B2}</button>';
+      h+='<button style="background:transparent;border:none;color:var(--dim);font-size:11px;padding:2px;cursor:pointer" onclick="cupMove('+i+',1)" '+(i===cups.length-1?'disabled':'')+'>\u{25BC}</button>';
+      h+='</div>';
+      h+='<div style="flex:1"><input class="fld" value="'+escapeHtml(c.name)+'" onblur="cupUpd('+i+',\'name\',this.value)" placeholder="Cup name" style="margin:0"></div>';
+      h+='<button style="background:transparent;border:none;color:var(--red);font-size:14px;padding:4px 8px;cursor:pointer" onclick="cupDel('+i+')">\u{2717}</button>';
+      h+='</div>';
+      h+='<div style="display:flex;align-items:center;gap:8px">';
+      h+='<label class="lbl" style="margin:0;flex-shrink:0">ml</label>';
+      h+='<input class="fld" type="number" inputmode="numeric" value="'+c.ml+'" min="1" max="5000" step="50" onblur="cupUpd('+i+',\'ml\',this.value)" style="flex:1;margin:0">';
+      h+='</div>';
+      h+='</div>';
+    });
+  }
+  h+='<button class="btn bo mt16" onclick="cupAdd()">+ Add cup</button>';
+  $.innerHTML=h;
+}
+
+function rHydrationHistory(){
+  var h='<div class="nav"><button class="bk" onclick="view=\'assessment\';R()">\u{2190} Back</button><span class="nav-t">Hydration History</span><span style="width:40px"></span></div>';
+  var target=mealData.hydrationTarget||3500;
+  var today=todayStr();
+  
+  // Helper: format a date as YYYY-MM-DD using local time
+  function localDateStr(d){var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+da}
+  
+  // === Week view (last 7 days including today) ===
+  h+='<div class="card" style="margin-bottom:14px">';
+  h+='<h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">This Week</h3>';
+  var weekDays=[];
+  var weekHits=0;
+  for(var i=6;i>=0;i--){
+    var d=new Date(today+'T00:00:00');d.setDate(d.getDate()-i);
+    var ds=localDateStr(d);
+    var ml=getHydrationByDate(ds);
+    var hit=ml>=target;
+    if(hit)weekHits++;
+    weekDays.push({date:ds,ml:ml,hit:hit,dayName:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]});
+  }
+  h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">';
+  weekDays.forEach(function(wd){
+    var bg=wd.hit?'var(--grn-s)':wd.ml>0?'var(--card-h)':'var(--bg)';
+    var col=wd.hit?'var(--grn)':'var(--dim)';
+    var sym=wd.hit?'\u{2713}':wd.ml>0?'\u{2014}':'';
+    h+='<div style="background:'+bg+';border:1px solid var(--bdr);border-radius:8px;padding:8px 4px;text-align:center">';
+    h+='<div style="font-size:9px;color:var(--dim);margin-bottom:4px">'+wd.dayName+'</div>';
+    h+='<div style="font-size:14px;color:'+col+';font-weight:700">'+sym+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--mut)">'+weekHits+' / 7 days hit</div>';
+  h+='</div>';
+  
+  // === Month view (last 30 days as heatmap) ===
+  h+='<div class="card" style="margin-bottom:14px">';
+  h+='<h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Last 30 Days</h3>';
+  var monthDays=[];var monthHits=0;
+  for(var i=29;i>=0;i--){
+    var d=new Date(today+'T00:00:00');d.setDate(d.getDate()-i);
+    var ds=localDateStr(d);
+    var ml=getHydrationByDate(ds);
+    var hit=ml>=target;
+    if(hit)monthHits++;
+    monthDays.push({date:ds,ml:ml,hit:hit,day:d.getDate()});
+  }
+  h+='<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px">';
+  monthDays.forEach(function(md){
+    var bg=md.hit?'var(--grn)':md.ml>0?'var(--card-h)':'var(--bg)';
+    var col=md.hit?'#fff':'var(--dim)';
+    h+='<div title="'+md.date+': '+md.ml+'ml" style="background:'+bg+';border:1px solid var(--bdr);border-radius:4px;padding:6px 0;text-align:center;font-size:10px;color:'+col+';font-weight:'+(md.hit?'700':'400')+'">'+md.day+'</div>';
+  });
+  h+='</div>';
+  var monthPct=Math.round(monthHits/30*100);
+  h+='<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--mut)">'+monthHits+' / 30 days hit ('+monthPct+'%)</div>';
+  h+='</div>';
+  
+  // === Year view (last 12 months) ===
+  h+='<div class="card" style="margin-bottom:14px">';
+  h+='<h3 style="font-size:13px;font-weight:600;color:var(--mut);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Last 12 Months</h3>';
+  var monthsArr=[];
+  var todayDt=new Date(today+'T00:00:00');
+  for(var m=11;m>=0;m--){
+    var monStart=new Date(todayDt.getFullYear(),todayDt.getMonth()-m,1);
+    var monEnd=new Date(todayDt.getFullYear(),todayDt.getMonth()-m+1,0);
+    var hits=0,total=0;
+    for(var dCursor=new Date(monStart);dCursor<=monEnd&&dCursor<=todayDt;dCursor.setDate(dCursor.getDate()+1)){
+      var ds=localDateStr(dCursor);
+      total++;
+      if(getHydrationByDate(ds)>=target)hits++;
+    }
+    var pct=total>0?Math.round(hits/total*100):0;
+    monthsArr.push({label:monStart.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}),hits:hits,total:total,pct:pct});
+  }
+  monthsArr.forEach(function(mo){
+    var barColor=mo.pct>=70?'var(--grn)':mo.pct>=40?'var(--acc)':'var(--bdr)';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+    h+='<div style="width:60px;font-size:11px;color:var(--mut);flex-shrink:0">'+mo.label+'</div>';
+    h+='<div style="flex:1;height:14px;background:var(--bg);border-radius:7px;overflow:hidden;position:relative"><div style="height:100%;background:'+barColor+';width:'+mo.pct+'%"></div></div>';
+    h+='<div style="width:50px;text-align:right;font-size:11px;color:var(--dim);flex-shrink:0">'+mo.hits+'/'+mo.total+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  
+  $.innerHTML=h;
+}
+
+
 async function loadDataFromDb(){
   if(!authUser)return;
   
@@ -2528,6 +2831,9 @@ function setupRealtimeSync(){
     .on('postgres_changes',{event:'*',schema:'public',table:'food_items',filter:'user_id=eq.'+authUser.id},triggerMealReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'meal_logs',filter:'user_id=eq.'+authUser.id},triggerMealReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'weight_logs',filter:'user_id=eq.'+authUser.id},triggerMealReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'hydration_cups',filter:'user_id=eq.'+authUser.id},triggerMealReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'hydration_logs',filter:'user_id=eq.'+authUser.id},triggerMealReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'hydration_settings',filter:'user_id=eq.'+authUser.id},triggerMealReload)
     .subscribe(function(status){console.log('[realtime] Status:',status)});
 }
 
