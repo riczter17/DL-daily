@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.7.0";
+var VER="v4.8.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -516,6 +516,7 @@ if(!data){
 }
 if(!data.checklist)data.checklist=CHECKLIST_DEF.map(function(c){return{id:c.id,l:c.l}});
 if(!data.customActivities)data.customActivities=[];
+if(!data.goals)data.goals=[];
 if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv();}
 // Migrate: add Sleep blocks to existing templates if missing (v3.1)
 (function(){var changed=false;Object.keys(data.templates).forEach(function(k){var tpl=data.templates[k];if(!tpl||!tpl.length||k==='custom')return;var nonSleep=tpl.filter(function(b){return b.cat!=='sleep'});if(!nonSleep.length)return;var hasStartSleep=tpl.some(function(b){return b.cat==='sleep'&&b.s===0});var hasEndSleep=tpl.some(function(b){return b.cat==='sleep'&&b.e===1440});if(!hasStartSleep){var firstStart=Math.min.apply(null,nonSleep.map(function(b){return b.s}));if(firstStart>0){tpl.unshift({s:0,e:firstStart,label:"Sleep",cat:"sleep"});changed=true}}if(!hasEndSleep){var lastEnd=Math.max.apply(null,nonSleep.map(function(b){return b.e}));if(lastEnd<1440){tpl.push({s:lastEnd,e:1440,label:"Sleep",cat:"sleep"});changed=true}}tpl.sort(function(a,b){return a.s-b.s})});if(changed)sv()})();
@@ -536,6 +537,12 @@ var editTpl=null,editTplBlk=null,tplPicker=null;
 var customLabel="";
 var $=document.getElementById("app");
 
+// Per-section collapse state, persisted in localStorage
+var COLLAPSE_KS="dos-collapse";
+var collapseState=(function(){try{var v=localStorage.getItem(COLLAPSE_KS);return v?JSON.parse(v):{goals:true,upcoming:true,past:true}}catch(e){return{goals:true,upcoming:true,past:true}}})();
+function toggleSection(key){collapseState[key]=!collapseState[key];try{localStorage.setItem(COLLAPSE_KS,JSON.stringify(collapseState))}catch(e){}R()}
+function escapeHtml(s){if(s==null)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+
 function getDay(d){return data.days[d]||null}
 function ensureDay(d){if(!data.days[d])data.days[d]={dayType:null,blocks:[],checklist:{},notes:"",customLabel:"",morningEnergy:null};return data.days[d]}
 
@@ -549,6 +556,7 @@ function R(){
   else if(view==="templates")rTemplates();
   else if(view==="checklist_edit")rChecklistEdit();
   else if(view==="my_activities")rMyActivities();
+  else if(view==="goals_edit")rGoalsEdit();
   else if(view==="meals")rMeals();
   else if(view==="meal_slot")rMealSlot();
   else if(view==="add_food")rAddFood();
@@ -665,53 +673,104 @@ function rHome(){
   var themeIcon=isLight?'\u{1F319}':'\u{2600}\u{FE0F}';
   var h='<div style="position:relative"><button onclick="toggleTheme()" style="position:absolute;top:8px;right:0;background:transparent;border:1px solid var(--bdr);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--mut)" title="Toggle theme">'+themeIcon+'</button></div>';
   h+='<div class="hdr"><div style="font-size:40px;margin-bottom:6px">\u{1F4CB}</div><h1>Daily OS</h1><p>Your daily operating system</p><p style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic;line-height:1.4">"On a day with no surprise, no chaos, full health, what would my best self do?"</p><p style="font-size:11px;color:var(--dim);margin-top:6px">'+VER+'</p></div>';
+
+  // GOALS section (collapsible)
+  var goals=data.goals||[];
+  var activeCount=goals.filter(function(g){return g.status==='active'}).length;
+  var maintCount=goals.filter(function(g){return g.status==='maintained'}).length;
+  var goalsCollapsed=collapseState.goals;
+  h+='<div class="sec" style="margin-top:14px">';
+  h+='<div onclick="toggleSection(\'goals\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0">';
+  h+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut)">'+(goalsCollapsed?'\u{25B8}':'\u{25BE}')+'</span><h2 class="sec-t" style="margin-bottom:0">Goals</h2></div>';
+  h+='<div style="font-size:11px;color:var(--dim)">'+activeCount+' active \u{00B7} '+maintCount+' maintained</div>';
+  h+='</div>';
+  if(!goalsCollapsed){
+    if(goals.length===0){
+      h+='<div style="text-align:center;padding:16px;color:var(--dim);font-size:13px">No goals yet.</div>';
+    }else{
+      goals.forEach(function(g){
+        var isActive=g.status==='active';
+        var dot=isActive?'\u{25CF}':'\u{25CB}';
+        var pillBg=isActive?'var(--acc-s)':'var(--card-h)';
+        var pillCol=isActive?'var(--acc)':'var(--dim)';
+        h+='<div class="card" style="margin-bottom:8px;padding:12px">';
+        h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">';
+        h+='<div style="display:flex;align-items:center;gap:8px;flex:1"><span style="font-size:14px;color:'+pillCol+'">'+dot+'</span><div style="font-size:14px;font-weight:600;color:var(--wht)">'+escapeHtml(g.name)+'</div></div>';
+        h+='<div style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;background:'+pillBg+';color:'+pillCol+';text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0">'+(isActive?'Active':'Maintained')+'</div>';
+        h+='</div>';
+        if(g.description){h+='<div style="font-size:12px;color:var(--mut);line-height:1.5;margin-left:22px">'+escapeHtml(g.description)+'</div>';}
+        h+='</div>';
+      });
+    }
+    h+='<div style="text-align:right;margin-top:4px"><button class="bsm" onclick="view=\'goals_edit\';R()">\u{270F}\u{FE0F} Edit goals</button></div>';
+  }
+  h+='</div>';
+
   var td=getDay(today);
   if(!td){h+='<button class="btn ba" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today \u{00B7} '+fd(today)+'</button>';}
   else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+fd(today)+' \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
-  h+='<div class="sec"><h2 class="sec-t">Upcoming</h2>';
-  for(var f=1;f<=7;f++){
-    var fdt=addDays(today,f);var fdy=getDay(fdt);
-    var fdtype=fdy&&fdy.dayType?gDT(fdy.dayType):null;
-    var fchecked=0;if(fdy){data.checklist.forEach(function(c){if(fdy.checklist[c.id])fchecked++})}
-    var fblk=fdy?fdy.blocks.length:0;
-    var fcl=fdy&&fdy.customLabel?' ('+fdy.customLabel+')':'';
-    h+='<div class="dc" onclick="curDate=\''+fdt+'\';ensureDay(\''+fdt+'\');view=\'day\';R()">';
-    h+='<div class="dc-l"><div>';
-    h+='<div class="dc-dt">'+fd(fdt)+(fdtype?' <span class="dtag" style="background:'+fdtype.c+'20;color:'+fdtype.c+'">'+fdtype.short+fcl+'</span>':'')+'</div>';
-    h+='<div class="dc-m">'+(fdy?fchecked+'/'+data.checklist.length+' checked \u{00B7} '+fblk+' blocks':'Not started')+'</div>';
-    h+='</div></div></div>';
+
+  // UPCOMING section (collapsible)
+  var upcomingCollapsed=collapseState.upcoming;
+  h+='<div class="sec">';
+  h+='<div onclick="toggleSection(\'upcoming\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0">';
+  h+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut)">'+(upcomingCollapsed?'\u{25B8}':'\u{25BE}')+'</span><h2 class="sec-t" style="margin-bottom:0">Upcoming</h2></div>';
+  h+='<div style="font-size:11px;color:var(--dim)">Next 7 days</div>';
+  h+='</div>';
+  if(!upcomingCollapsed){
+    for(var f=1;f<=7;f++){
+      var fdt=addDays(today,f);var fdy=getDay(fdt);
+      var fdtype=fdy&&fdy.dayType?gDT(fdy.dayType):null;
+      var fchecked=0;if(fdy){data.checklist.forEach(function(c){if(fdy.checklist[c.id])fchecked++})}
+      var fblk=fdy?fdy.blocks.length:0;
+      var fcl=fdy&&fdy.customLabel?' ('+fdy.customLabel+')':'';
+      h+='<div class="dc" onclick="curDate=\''+fdt+'\';ensureDay(\''+fdt+'\');view=\'day\';R()">';
+      h+='<div class="dc-l"><div>';
+      h+='<div class="dc-dt">'+fd(fdt)+(fdtype?' <span class="dtag" style="background:'+fdtype.c+'20;color:'+fdtype.c+'">'+fdtype.short+fcl+'</span>':'')+'</div>';
+      h+='<div class="dc-m">'+(fdy?fchecked+'/'+data.checklist.length+' checked \u{00B7} '+fblk+' blocks':'Not started')+'</div>';
+      h+='</div></div></div>';
+    }
   }
   h+='</div>';
-  h+='<div class="sec"><h2 class="sec-t">Past</h2>';
-  var weeks={},weekOrder=[];
-  for(var i=1;i<=28;i++){
-    var dt=addDays(today,-i);
-    var mon=getMonday(dt);
-    if(!weeks[mon]){weeks[mon]=[];weekOrder.push(mon)}
-    weeks[mon].push(dt);
-  }
-  weekOrder.forEach(function(mon){
-    var days=weeks[mon];
-    var logged=0;days.forEach(function(dt){var dy=getDay(dt);if(dy&&dy.blocks.length>0)logged++});
-    var isOpen=!!openWeeks[mon];
-    h+='<div class="wk-hdr" onclick="toggleWeek(\''+mon+'\')">';
-    h+='<div class="wk-hdr-l"><span class="wk-arrow'+(isOpen?' open':'')+'">\u{25B6}</span> '+weekLabel(mon)+'</div>';
-    h+='<div class="wk-hdr-r">'+logged+'/'+days.length+' logged</div></div>';
-    if(isOpen){
-      days.forEach(function(dt){
-        var dy=getDay(dt);
-        var dtype=dy&&dy.dayType?gDT(dy.dayType):null;
-        var chk=0;if(dy){data.checklist.forEach(function(c){if(dy.checklist[c.id])chk++})}
-        var blk=dy?dy.blocks.length:0;
-        var cl=dy&&dy.customLabel?' ('+dy.customLabel+')':'';
-        h+='<div class="dc" onclick="curDate=\''+dt+'\';ensureDay(\''+dt+'\');view=\'day\';R()">';
-        h+='<div class="dc-l"><div>';
-        h+='<div class="dc-dt">'+fd(dt)+(dtype?' <span class="dtag" style="background:'+dtype.c+'20;color:'+dtype.c+'">'+dtype.short+cl+'</span>':'')+'</div>';
-        h+='<div class="dc-m">'+(dy?chk+'/'+data.checklist.length+' checked \u{00B7} '+blk+' blocks':'Not started')+'</div>';
-        h+='</div></div></div>';
-      });
+
+  // PAST section (collapsible)
+  var pastCollapsed=collapseState.past;
+  h+='<div class="sec">';
+  h+='<div onclick="toggleSection(\'past\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0">';
+  h+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut)">'+(pastCollapsed?'\u{25B8}':'\u{25BE}')+'</span><h2 class="sec-t" style="margin-bottom:0">Past</h2></div>';
+  h+='<div style="font-size:11px;color:var(--dim)">Last 4 weeks</div>';
+  h+='</div>';
+  if(!pastCollapsed){
+    var weeks={},weekOrder=[];
+    for(var i=1;i<=28;i++){
+      var dt=addDays(today,-i);
+      var mon=getMonday(dt);
+      if(!weeks[mon]){weeks[mon]=[];weekOrder.push(mon)}
+      weeks[mon].push(dt);
     }
-  });
+    weekOrder.forEach(function(mon){
+      var days=weeks[mon];
+      var logged=0;days.forEach(function(dt){var dy=getDay(dt);if(dy&&dy.blocks.length>0)logged++});
+      var isOpen=!!openWeeks[mon];
+      h+='<div class="wk-hdr" onclick="toggleWeek(\''+mon+'\')">';
+      h+='<div class="wk-hdr-l"><span class="wk-arrow'+(isOpen?' open':'')+'">\u{25B6}</span> '+weekLabel(mon)+'</div>';
+      h+='<div class="wk-hdr-r">'+logged+'/'+days.length+' logged</div></div>';
+      if(isOpen){
+        days.forEach(function(dt){
+          var dy=getDay(dt);
+          var dtype=dy&&dy.dayType?gDT(dy.dayType):null;
+          var chk=0;if(dy){data.checklist.forEach(function(c){if(dy.checklist[c.id])chk++})}
+          var blk=dy?dy.blocks.length:0;
+          var cl=dy&&dy.customLabel?' ('+dy.customLabel+')':'';
+          h+='<div class="dc" onclick="curDate=\''+dt+'\';ensureDay(\''+dt+'\');view=\'day\';R()">';
+          h+='<div class="dc-l"><div>';
+          h+='<div class="dc-dt">'+fd(dt)+(dtype?' <span class="dtag" style="background:'+dtype.c+'20;color:'+dtype.c+'">'+dtype.short+cl+'</span>':'')+'</div>';
+          h+='<div class="dc-m">'+(dy?chk+'/'+data.checklist.length+' checked \u{00B7} '+blk+' blocks':'Not started')+'</div>';
+          h+='</div></div></div>';
+        });
+      }
+    });
+  }
   h+='</div>';
   h+='<button class="btn bo" onclick="view=\'summary\';R()">\u{1F4CA} Weekly Summary</button>';
   h+='<button class="btn bo" onclick="view=\'meals\';mealView=\'home\';R()">\u{1F372} Meal Tracker</button>';
@@ -1076,6 +1135,39 @@ function rChecklistEdit(){
   h+='<button class="btn bo mt16" onclick="clReset()">Reset to Default</button>';
   $.innerHTML=h;
 }
+
+function rGoalsEdit(){
+  var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">Edit Goals</span><span style="width:40px"></span></div>';
+  h+='<div class="card" style="margin-bottom:14px;background:var(--acc-s);border:1px solid var(--acc)"><p style="font-size:12px;line-height:1.5;color:var(--txt);margin:0">Active goals are what you\'re focused on this period. Maintained goals are in rhythm and don\'t need active surveillance.</p></div>';
+  var goals=data.goals||[];
+  if(goals.length===0){
+    h+='<div class="card" style="text-align:center;padding:24px;color:var(--dim)">No goals yet. Add one below.</div>';
+  }else{
+    goals.forEach(function(g,i){
+      var isActive=g.status==='active';
+      h+='<div class="card" style="margin-bottom:10px;padding:14px">';
+      // Header row: reorder + status toggle + delete
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+      h+='<div style="display:flex;flex-direction:column;gap:2px">';
+      h+='<button style="background:transparent;border:none;color:var(--dim);font-size:11px;padding:2px;cursor:pointer" onclick="goalMove('+i+',-1)" '+(i===0?'disabled':'')+'>\u{25B2}</button>';
+      h+='<button style="background:transparent;border:none;color:var(--dim);font-size:11px;padding:2px;cursor:pointer" onclick="goalMove('+i+',1)" '+(i===goals.length-1?'disabled':'')+'>\u{25BC}</button>';
+      h+='</div>';
+      h+='<button onclick="goalToggleStatus('+i+')" style="flex:1;text-align:left;background:transparent;border:1px solid '+(isActive?'var(--acc)':'var(--bdr)')+';border-radius:8px;padding:6px 10px;cursor:pointer;color:'+(isActive?'var(--acc)':'var(--dim)')+';font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">'+(isActive?'\u{25CF} Active':'\u{25CB} Maintained')+' (tap to toggle)</button>';
+      h+='<button style="background:transparent;border:none;color:var(--red);font-size:14px;padding:4px 8px;cursor:pointer" onclick="goalDel('+i+')">\u{2717}</button>';
+      h+='</div>';
+      // Name field
+      h+='<label class="lbl">Name</label>';
+      h+='<input class="fld" value="'+escapeHtml(g.name)+'" onblur="goalUpd('+i+',\'name\',this.value)" placeholder="Goal name">';
+      // Description field
+      h+='<label class="lbl mt8">Description</label>';
+      h+='<textarea class="fld" rows="3" onblur="goalUpd('+i+',\'description\',this.value)" placeholder="Why this goal matters and what it covers." style="resize:vertical;font-family:inherit;line-height:1.4">'+escapeHtml(g.description||'')+'</textarea>';
+      h+='</div>';
+    });
+  }
+  h+='<button class="btn bo mt16" onclick="goalAdd()">+ Add goal</button>';
+  $.innerHTML=h;
+}
+
 
 function rMyActivities(){
   var h='<div class="nav"><button class="bk" onclick="view=\'home\';R()">\u{2190} Back</button><span class="nav-t">My Activities</span><span style="width:40px"></span></div>';
@@ -1461,6 +1553,84 @@ async function saveChecklistDefsToDb(){
     var insRes=await db.from('checklist_items').insert(rows);
     if(insRes.error)console.error('saveChecklistDefsToDb insert error:',insRes.error);
   }
+}
+
+// === GOALS DB HELPERS ===
+
+async function insertGoalToDb(localGoal){
+  if(!authUser)return;
+  noteLocalWrite();
+  var payload={user_id:authUser.id,name:localGoal.name,description:localGoal.description||null,status:localGoal.status,order_index:localGoal.order_index};
+  var result=await db.from('goals').insert(payload).select().single();
+  if(result.error){console.error('insertGoalToDb error:',result.error);return}
+  localGoal._id=result.data.id;
+}
+
+async function updateGoalInDb(localGoal){
+  if(!authUser||!localGoal._id)return;
+  noteLocalWrite();
+  var payload={name:localGoal.name,description:localGoal.description||null,status:localGoal.status,order_index:localGoal.order_index,updated_at:new Date().toISOString()};
+  var result=await db.from('goals').update(payload).eq('id',localGoal._id);
+  if(result.error)console.error('updateGoalInDb error:',result.error);
+}
+
+async function deleteGoalFromDb(goalId){
+  if(!authUser||!goalId)return;
+  noteLocalWrite();
+  var result=await db.from('goals').delete().eq('id',goalId);
+  if(result.error)console.error('deleteGoalFromDb error:',result.error);
+}
+
+async function reorderGoalsInDb(){
+  if(!authUser)return;
+  noteLocalWrite();
+  // Update order_index for all goals based on current array position
+  var updates=data.goals.map(function(g,idx){
+    g.order_index=idx+1;
+    if(g._id)return db.from('goals').update({order_index:idx+1,updated_at:new Date().toISOString()}).eq('id',g._id);
+    return null;
+  }).filter(function(p){return p});
+  await Promise.all(updates);
+}
+
+// Goals UI handlers
+function goalAdd(){
+  var newGoal={name:'New goal',description:'',status:'active',order_index:data.goals.length+1};
+  data.goals.push(newGoal);
+  sv();
+  insertGoalToDb(newGoal);
+  R();
+}
+function goalUpd(idx,field,value){
+  var g=data.goals[idx];if(!g)return;
+  g[field]=value;
+  sv();
+  updateGoalInDb(g);
+  R();
+}
+function goalDel(idx){
+  var g=data.goals[idx];if(!g)return;
+  if(!confirm('Delete goal "'+g.name+'"?'))return;
+  var goalId=g._id;
+  data.goals.splice(idx,1);
+  sv();
+  if(goalId)deleteGoalFromDb(goalId);
+  R();
+}
+function goalMove(idx,dir){
+  var arr=data.goals;var j=idx+dir;
+  if(j<0||j>=arr.length)return;
+  var tmp=arr[idx];arr[idx]=arr[j];arr[j]=tmp;
+  sv();
+  reorderGoalsInDb();
+  R();
+}
+function goalToggleStatus(idx){
+  var g=data.goals[idx];if(!g)return;
+  g.status=g.status==='active'?'maintained':'active';
+  sv();
+  updateGoalInDb(g);
+  R();
 }
 
 // === MEAL TRACKER DB HELPERS ===
@@ -2257,18 +2427,19 @@ async function loadDataFromDb(){
   if(!authUser)return;
   
   // Fetch all data in parallel
-  var [daysRes,blocksRes,templatesRes,tmplBlocksRes,activitiesRes,checklistRes,dayChkRes]=await Promise.all([
+  var [daysRes,blocksRes,templatesRes,tmplBlocksRes,activitiesRes,checklistRes,dayChkRes,goalsRes]=await Promise.all([
     db.from('days').select('*'),
     db.from('blocks').select('*'),
     db.from('templates').select('*'),
     db.from('template_blocks').select('*'),
     db.from('activities').select('*').eq('is_predefined',false),
     db.from('checklist_items').select('*').order('order_index'),
-    db.from('day_checklist').select('*')
+    db.from('day_checklist').select('*'),
+    db.from('goals').select('*').order('order_index')
   ]);
   
   // Check for errors
-  var errors=[daysRes.error,blocksRes.error,templatesRes.error,tmplBlocksRes.error,activitiesRes.error,checklistRes.error,dayChkRes.error].filter(function(e){return e});
+  var errors=[daysRes.error,blocksRes.error,templatesRes.error,tmplBlocksRes.error,activitiesRes.error,checklistRes.error,dayChkRes.error,goalsRes.error].filter(function(e){return e});
   if(errors.length){console.error('Load errors:',errors);return}
   
   // Build days object
@@ -2313,8 +2484,11 @@ async function loadDataFromDb(){
   // Build checklist definitions array
   var checklist=checklistRes.data.map(function(c){return{id:c.item_id,l:c.label}});
   
+  // Build goals array
+  var goals=goalsRes.data.map(function(g){return{_id:g.id,name:g.name,description:g.description||'',status:g.status,order_index:g.order_index}});
+  
   // Replace the global data object
-  data={days:days,templates:templatesFlat,customActivities:customActivities,checklist:checklist};
+  data={days:days,templates:templatesFlat,customActivities:customActivities,checklist:checklist,goals:goals};
   // Update local cache
   try{sv()}catch(e){console.warn('[loadDataFromDb] Cache save failed:',e)}
 }
@@ -2334,6 +2508,7 @@ function setupRealtimeSync(){
     .on('postgres_changes',{event:'*',schema:'public',table:'checklist_items',filter:'user_id=eq.'+authUser.id},triggerReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'user_id=eq.'+authUser.id},triggerReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'templates',filter:'user_id=eq.'+authUser.id},triggerReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'goals',filter:'user_id=eq.'+authUser.id},triggerReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'food_items',filter:'user_id=eq.'+authUser.id},triggerMealReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'meal_logs',filter:'user_id=eq.'+authUser.id},triggerMealReload)
     .on('postgres_changes',{event:'*',schema:'public',table:'weight_logs',filter:'user_id=eq.'+authUser.id},triggerMealReload)

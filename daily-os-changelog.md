@@ -1,3 +1,33 @@
+## v4.8.0 (9 May 2026)
+
+### Goals
+- New top-level "Goals" section on the home screen as an aspirational anchor
+- Each goal has a name, description, and status (Active or Maintained)
+- Active goals are what's prioritised this period; Maintained goals are in rhythm and don't need active surveillance
+- Visual cues: filled circle (●) + grapemist accent for Active, hollow circle (○) + dim text for Maintained
+- 5 goals seeded: Sleep, Mental health practices, Career evolution (active for May-June), Physical health, Stress management (maintained)
+
+### Goals Edit View
+- Accessed via "Edit goals" button inside expanded Goals section on home
+- Per goal: rename, edit description, toggle Active/Maintained status, reorder up/down, delete
+- "+ Add goal" button at bottom creates a new goal stub
+- All edits save live to Supabase with realtime sync across devices
+
+### Collapsible Home Sections
+- Goals, Upcoming, and Past sections now collapsible via tappable headers
+- Default state: all collapsed (showing summary count)
+- Collapse state persists per-section in localStorage under `dos-collapse` key
+- Today button stays prominent and never collapses
+
+### Database
+- New `goals` table with columns: id, user_id, name, description, status (active/maintained), order_index, timestamps
+- RLS enabled with standard auth.uid() policies
+- Realtime publication includes goals table for cross-device sync
+
+### Required: Run `goals-migration.sql` in Supabase SQL Editor before deploying
+
+---
+
 ## v4.7.0 (9 May 2026)
 
 ### Collapsible Food Categories
