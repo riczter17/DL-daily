@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.10.1";
+var VER="v4.10.2";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -261,6 +261,7 @@ var weightRange='3m'; // '3m','6m','1y','all'
 var collapsedCats={};
 var hydrationView='home'; // 'home' or 'cups'
 var hydrationExpanded=false;
+var hydrationEditId=null;
 
 function getMealDate(){return mealDate||todayStr()}
 function shiftMealDate(days){
@@ -1804,6 +1805,18 @@ async function deleteHydrationLogById(logId){
   R();
 }
 
+async function updateHydrationLogMl(logId,newMl){
+  if(!authUser||!newMl||newMl<=0)return;
+  noteLocalWrite();
+  var res=await db.from('hydration_logs').update({ml:newMl}).eq('id',logId);
+  if(res.error){console.error('updateHydrationLogMl error:',res.error);return}
+  var log=mealData.hydrationLogs.find(function(l){return l._id===logId});
+  if(log)log.ml=newMl;
+  svMeals();
+  hydrationEditId=null;
+  R();
+}
+
 async function insertHydrationCup(cup){
   if(!authUser)return;
   noteLocalWrite();
@@ -2085,14 +2098,25 @@ function rMeals(){
           if(l.cup_id){var cup=mealData.hydrationCups.find(function(c){return c._id===l.cup_id});if(cup)cupName=cup.name}
           var timeStr='';
           if(l.created_at){var dt=new Date(l.created_at);timeStr=dt.getHours()+':'+(dt.getMinutes()<10?'0':'')+dt.getMinutes()}
+          var isEditing=hydrationEditId===l._id;
           h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px">';
           h+='<div><span style="color:var(--txt)">'+(cupName||l.ml+'ml')+'</span>';
           if(timeStr)h+=' <span style="color:var(--dim)">'+timeStr+'</span>';
           h+='</div>';
-          h+='<div style="display:flex;align-items:center;gap:8px">';
-          h+='<span style="color:var(--dim)">'+l.ml+'ml</span>';
-          h+='<button onclick="event.stopPropagation();deleteHydrationLogById(\''+l._id+'\')" style="width:22px;height:22px;border-radius:5px;border:1px solid var(--red);background:var(--red-s);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2717}</button>';
-          h+='</div></div>';
+          if(isEditing){
+            h+='<div style="display:flex;align-items:center;gap:4px">';
+            h+='<input id="hydraEdit_'+l._id+'" type="number" inputmode="numeric" value="'+l.ml+'" style="width:60px;padding:4px 6px;border-radius:5px;border:1px solid var(--acc);background:var(--bg);color:var(--txt);font-size:12px;text-align:right">';
+            h+='<span style="font-size:11px;color:var(--dim)">ml</span>';
+            h+='<button onclick="event.stopPropagation();var v=parseInt(document.getElementById(\'hydraEdit_'+l._id+'\').value);updateHydrationLogMl(\''+l._id+'\',v)" style="width:22px;height:22px;border-radius:5px;border:1px solid var(--grn);background:var(--grn-s);color:var(--grn);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2713}</button>';
+            h+='<button onclick="event.stopPropagation();hydrationEditId=null;R()" style="width:22px;height:22px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg);color:var(--dim);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2717}</button>';
+            h+='</div>';
+          }else{
+            h+='<div style="display:flex;align-items:center;gap:8px">';
+            h+='<span onclick="event.stopPropagation();hydrationEditId=\''+l._id+'\';R()" style="color:var(--acc);cursor:pointer">'+l.ml+'ml</span>';
+            h+='<button onclick="event.stopPropagation();deleteHydrationLogById(\''+l._id+'\')" style="width:22px;height:22px;border-radius:5px;border:1px solid var(--red);background:var(--red-s);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2717}</button>';
+            h+='</div>';
+          }
+          h+='</div>';
         });
         h+='</div>';
       }
