@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.10.0";
+var VER="v4.10.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -260,6 +260,7 @@ var weightInputActive=false;
 var weightRange='3m'; // '3m','6m','1y','all'
 var collapsedCats={};
 var hydrationView='home'; // 'home' or 'cups'
+var hydrationExpanded=false;
 
 function getMealDate(){return mealDate||todayStr()}
 function shiftMealDate(days){
@@ -1785,6 +1786,24 @@ async function undoLastHydrationLog(dateStr){
   svMeals();
 }
 
+function getHydrationLogsForDate(dateStr){
+  if(!mealData.hydrationLogs)return[];
+  return mealData.hydrationLogs.filter(function(l){return l.date===dateStr}).sort(function(a,b){
+    return new Date(b.created_at)-new Date(a.created_at);
+  });
+}
+
+async function deleteHydrationLogById(logId){
+  if(!authUser)return;
+  noteLocalWrite();
+  var res=await db.from('hydration_logs').delete().eq('id',logId);
+  if(res.error){console.error('deleteHydrationLog error:',res.error);return}
+  var idx=mealData.hydrationLogs.findIndex(function(l){return l._id===logId});
+  if(idx>=0)mealData.hydrationLogs.splice(idx,1);
+  svMeals();
+  R();
+}
+
 async function insertHydrationCup(cup){
   if(!authUser)return;
   noteLocalWrite();
@@ -2051,6 +2070,34 @@ function rMeals(){
       h+='<button onclick="logHydrationDrink(\''+c._id+'\','+c.ml+',\''+d+'\').then(function(){R()})" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--bdr);color:var(--txt);font-size:12px;font-weight:500;cursor:pointer;text-align:left">'+escapeHtml(c.name)+'</button>';
     });
     h+='</div>';
+    // Expandable log entries
+    var dayLogs=getHydrationLogsForDate(d);
+    if(dayLogs.length>0){
+      h+='<div style="margin-top:8px;border-top:1px solid var(--bdr);padding-top:8px">';
+      h+='<div onclick="hydrationExpanded=!hydrationExpanded;R()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">';
+      h+='<span style="font-size:11px;color:var(--dim)">'+dayLogs.length+' entr'+(dayLogs.length===1?'y':'ies')+' today</span>';
+      h+='<span style="font-size:11px;color:var(--acc)">'+(hydrationExpanded?'Hide':'Show')+'</span>';
+      h+='</div>';
+      if(hydrationExpanded){
+        h+='<div style="margin-top:6px">';
+        dayLogs.forEach(function(l){
+          var cupName='';
+          if(l.cup_id){var cup=mealData.hydrationCups.find(function(c){return c._id===l.cup_id});if(cup)cupName=cup.name}
+          var timeStr='';
+          if(l.created_at){var dt=new Date(l.created_at);timeStr=dt.getHours()+':'+(dt.getMinutes()<10?'0':'')+dt.getMinutes()}
+          h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px">';
+          h+='<div><span style="color:var(--txt)">'+(cupName||l.ml+'ml')+'</span>';
+          if(timeStr)h+=' <span style="color:var(--dim)">'+timeStr+'</span>';
+          h+='</div>';
+          h+='<div style="display:flex;align-items:center;gap:8px">';
+          h+='<span style="color:var(--dim)">'+l.ml+'ml</span>';
+          h+='<button onclick="event.stopPropagation();deleteHydrationLogById(\''+l._id+'\')" style="width:22px;height:22px;border-radius:5px;border:1px solid var(--red);background:var(--red-s);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u{2717}</button>';
+          h+='</div></div>';
+        });
+        h+='</div>';
+      }
+      h+='</div>';
+    }
     // Footer: undo + manage
     h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr)">';
     if(lastLog){
