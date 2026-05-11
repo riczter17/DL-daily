@@ -1,3 +1,10 @@
+## v4.10.4 (11 May 2026)
+
+### Bug Fix
+- Fixed collapsible food category state resetting on page reload or mobile app switch. Collapse/expand state now persisted in localStorage under `dos-collapsed-cats` key via `toggleCat()` function. Categories stay collapsed across navigation, re-renders, and page reloads.
+
+---
+
 ## v4.10.3 (11 May 2026)
 
 ### Template Fix: Prep Before Meditation
