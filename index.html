@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.10.2";
+var VER="v4.10.3";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -359,9 +359,10 @@ var DEF_TEMPLATES={
   ],
   nw_wfh:[
     {s:0,e:360,label:"Sleep",cat:"sleep"},
-    {s:360,e:375,label:"Meditation",cat:"health"},
+    {s:360,e:375,label:"Prep",cat:"personal"},
     {s:375,e:420,label:"Workout",cat:"health"},
-    {s:420,e:465,label:"Prep",cat:"personal"},
+    {s:420,e:450,label:"Prep",cat:"personal"},
+    {s:450,e:465,label:"Meditation",cat:"health"},
     {s:465,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
@@ -395,8 +396,8 @@ var DEF_TEMPLATES={
   ],
   mum_wio:[
     {s:0,e:360,label:"Sleep",cat:"sleep"},
-    {s:360,e:375,label:"Meditation",cat:"health"},
-    {s:375,e:420,label:"Prep",cat:"personal"},
+    {s:360,e:405,label:"Prep",cat:"personal"},
+    {s:405,e:420,label:"Meditation",cat:"health"},
     {s:420,e:465,label:"Commute",cat:"commute"},
     {s:465,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
@@ -412,9 +413,9 @@ var DEF_TEMPLATES={
   ],
   mum_wfh:[
     {s:0,e:360,label:"Sleep",cat:"sleep"},
-    {s:360,e:375,label:"Meditation",cat:"health"},
-    {s:375,e:420,label:"Chores",cat:"chores"},
-    {s:420,e:450,label:"Prep",cat:"personal"},
+    {s:360,e:390,label:"Prep",cat:"personal"},
+    {s:390,e:405,label:"Meditation",cat:"health"},
+    {s:405,e:450,label:"Chores",cat:"chores"},
     {s:450,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
@@ -429,9 +430,10 @@ var DEF_TEMPLATES={
   ],
   w_mum_wfh:[
     {s:0,e:360,label:"Sleep",cat:"sleep"},
-    {s:360,e:375,label:"Meditation",cat:"health"},
+    {s:360,e:375,label:"Prep",cat:"personal"},
     {s:375,e:405,label:"Workout",cat:"health"},
-    {s:405,e:450,label:"Prep",cat:"personal"},
+    {s:405,e:435,label:"Prep",cat:"personal"},
+    {s:435,e:450,label:"Meditation",cat:"health"},
     {s:450,e:480,label:"Meal",cat:"personal"},
     {s:480,e:720,label:"Work",cat:"work"},
     {s:720,e:780,label:"Meal",cat:"personal"},
@@ -446,8 +448,8 @@ var DEF_TEMPLATES={
   ],
   saturday:[
     {s:0,e:420,label:"Sleep",cat:"sleep"},
-    {s:420,e:435,label:"Meditation",cat:"health"},
-    {s:435,e:465,label:"Prep",cat:"personal"},
+    {s:420,e:450,label:"Prep",cat:"personal"},
+    {s:450,e:465,label:"Meditation",cat:"health"},
     {s:465,e:525,label:"Chores",cat:"chores"},
     {s:525,e:615,label:"Couples workout",cat:"health"},
     {s:615,e:720,label:"Wife time",cat:"rest"},
@@ -461,8 +463,8 @@ var DEF_TEMPLATES={
   ],
   sunday:[
     {s:0,e:420,label:"Sleep",cat:"sleep"},
-    {s:420,e:450,label:"Meditation",cat:"health"},
-    {s:450,e:495,label:"Prep",cat:"personal"},
+    {s:420,e:465,label:"Prep",cat:"personal"},
+    {s:465,e:495,label:"Meditation",cat:"health"},
     {s:495,e:540,label:"Reading",cat:"fun"},
     {s:540,e:720,label:"Errands",cat:"chores"},
     {s:720,e:780,label:"Meal",cat:"personal"},
