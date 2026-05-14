@@ -1,30 +1,15 @@
-## v4.11.0 (14 May 2026)
+## v4.11.1 (14 May 2026)
 
-### Food Category Restructure
-Split the catch-all "Mains" category into protein-specific categories for easier meal-time browsing.
+### Collapse All / Expand All for Food Categories
+- New toggle link above the food list in the meal slot view
+- Single button that flips between "Collapse all" and "Expand all" based on current state
+- Only acts on visible categories (those with items in the current slot)
+- Hidden during search (categories auto-expand when searching)
+- State persists in the same `dos-collapsed-cats` localStorage key as individual toggles
 
-**New category order:**
-- Eggs
-- Chicken
-- Fish & Seafood
-- Other Meats
-- Soups
-- Sides
-- Carbs
-- Drinks
-- Snacks
-
-**Migration behaviour:**
-- One-time migration runs automatically on first app load after this version
-- Existing items in "Mains" are re-categorised based on name keywords:
-  - "soup", "bak kut teh", "samgyetang" → Soups
-  - Fish/seafood keywords (salmon, tuna, sashimi, prawn, ebi, unagi, fish maw, etc.) → Fish & Seafood
-  - Chicken keywords (chicken, char siew, tori, rendang, karaage) → Chicken
-  - Beef/pork/lamb/tripe keywords → Other Meats
-  - Unmatched items default to Other Meats
-- Existing items in Eggs/Sides/Carbs/Drinks/Snacks stay untouched
-- Migration flag persisted in localStorage (`dos-cat-migrated-v1`) so it runs once per device
-- Historical meal logs are unaffected (they reference food_item_id, not category)
-- Any item that lands in the wrong category can be moved via the edit pencil
+### Collapsible Category State Persistence (recovered)
+- Individual category collapse state now persists in localStorage via `toggleCat()` function
+- Categories stay collapsed across navigation, re-renders, and page reloads
+- This was originally shipped in v4.10.4 but wasn't present in the v4.11.0 base file
 
 ---

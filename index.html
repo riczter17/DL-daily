@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.11.0";
+var VER="v4.11.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -259,7 +259,27 @@ var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
 var editFoodId=null;
 var weightInputActive=false;
 var weightRange='3m'; // '3m','6m','1y','all'
-var collapsedCats={};
+var collapsedCats=(function(){try{var v=localStorage.getItem('dos-collapsed-cats');return v?JSON.parse(v):{}}catch(e){return{}}})();
+function persistCollapsedCats(){try{localStorage.setItem('dos-collapsed-cats',JSON.stringify(collapsedCats))}catch(e){}}
+function toggleCat(cat){collapsedCats[cat]=!collapsedCats[cat];persistCollapsedCats();R()}
+function getVisibleCatsForSlot(){
+  if(!mealSlot)return[];
+  var foods=getFoodsForSlot(mealSlot);
+  if(mealSearchQ){var q=mealSearchQ.toLowerCase();foods=foods.filter(function(f){return f.name.toLowerCase().indexOf(q)>=0})}
+  var cats=[];
+  FOOD_CATS.forEach(function(c){if(foods.some(function(f){return(f.cat||'Mains')===c}))cats.push(c)});
+  if(foods.some(function(f){return!f.cat||FOOD_CATS.indexOf(f.cat)<0}))cats.push('Other');
+  return cats;
+}
+function areAllCatsCollapsed(){
+  var cats=getVisibleCatsForSlot();
+  if(!cats.length)return false;
+  return cats.every(function(c){return collapsedCats[c]});
+}
+function setAllCatsCollapsed(collapsed){
+  getVisibleCatsForSlot().forEach(function(c){collapsedCats[c]=collapsed});
+  persistCollapsedCats();R();
+}
 var hydrationView='home'; // 'home' or 'cups'
 var hydrationExpanded=false;
 var hydrationEditId=null;
@@ -2331,6 +2351,12 @@ function rMealSlot(){
     var q=mealSearchQ.toLowerCase();
     foods=foods.filter(function(f){return f.name.toLowerCase().indexOf(q)>=0});
   }
+  // Collapse-all toggle (hidden when searching since all categories auto-expand)
+  if(foods.length&&!mealSearchQ){
+    var allCollapsed=areAllCatsCollapsed();
+    var btnLabel=allCollapsed?'Expand all':'Collapse all';
+    h+='<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button onclick="setAllCatsCollapsed('+(!allCollapsed)+')" style="background:transparent;border:none;color:var(--acc);font-size:12px;font-weight:500;cursor:pointer;padding:4px 0">'+btnLabel+'</button></div>';
+  }
   if(foods.length){
     // Group by category
     FOOD_CATS.forEach(function(cat){
@@ -2338,7 +2364,7 @@ function rMealSlot(){
       if(!catFoods.length)return;
       var isCollapsed=collapsedCats[cat]&&!mealSearchQ;
       var arrow=isCollapsed?'\u{25B8}':'\u{25BE}';
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="collapsedCats[\''+cat+'\']=!collapsedCats[\''+cat+'\'];R()">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="toggleCat(\''+cat+'\')">';
       h+='<span style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">'+cat+' <span style="font-weight:400;color:var(--dim)">('+catFoods.length+')</span></span>';
       h+='<span style="font-size:12px;color:var(--dim)">'+arrow+'</span>';
       h+='</div>';
@@ -2360,7 +2386,7 @@ function rMealSlot(){
     if(uncatFoods.length){
       var isCollapsed=collapsedCats['Other']&&!mealSearchQ;
       var arrow=isCollapsed?'\u{25B8}':'\u{25BE}';
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="collapsedCats[\'Other\']=!collapsedCats[\'Other\'];R()">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="toggleCat(\'Other\')">';
       h+='<span style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Other <span style="font-weight:400;color:var(--dim)">('+uncatFoods.length+')</span></span>';
       h+='<span style="font-size:12px;color:var(--dim)">'+arrow+'</span>';
       h+='</div>';
