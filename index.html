@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.10.5";
+var VER="v4.11.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -214,7 +214,7 @@ var MEAL_SLOT_TARGETS={
   dinner:{min:600,max:700}
 };
 var MEAL_KS='dos-meals';
-var FOOD_CATS=['Eggs','Mains','Sides','Carbs','Drinks','Snacks'];
+var FOOD_CATS=['Eggs','Chicken','Fish & Seafood','Other Meats','Soups','Sides','Carbs','Drinks','Snacks'];
 var SEED_FOODS=[
   // Eggs
   {name:"Soft-boiled Egg | YA KUN",cal:70,protein:6,slot:"any",cat:"Eggs"},
@@ -222,17 +222,18 @@ var SEED_FOODS=[
   {name:"Scrambled Egg (minimal oil) | HOME",cal:75,protein:6,slot:"any",cat:"Eggs"},
   {name:"Sunny Side Up",cal:90,protein:6,slot:"any",cat:"Eggs"},
   {name:"Ajitsuke Tamago | DONKI",cal:70,protein:6,slot:"any",cat:"Eggs"},
-  // Mains
-  {name:"Chargrilled Chicken w/ Double Garden Salad | ASTON'S",cal:400,protein:45,slot:"any",cat:"Mains"},
-  {name:"Rosemary Chicken (Grilled Thigh) | MDM YAP'S",cal:220,protein:38,slot:"any",cat:"Mains"},
-  {name:"6-inch Chicken Breast Double Meat, Loaded Veg | SUBWAY",cal:420,protein:40,slot:"any",cat:"Mains"},
-  {name:"3-inch Flatbread Chicken Sausage Egg Cheese | SUBWAY",cal:270,protein:14,slot:"any",cat:"Mains"},
-  {name:"Steamed Chicken | THIEN KEE",cal:290,protein:36,slot:"any",cat:"Mains"},
-  {name:"Grilled Chicken/Fish + 1 Veg | RADEN LINA",cal:250,protein:24,slot:"any",cat:"Mains"},
-  {name:"Rotisserie Chicken Leg | COLD STORAGE/FAIRPRICE",cal:300,protein:36,slot:"any",cat:"Mains"},
-  {name:"Chicken Leg in Soup | HOME",cal:320,protein:38,slot:"any",cat:"Mains"},
-  {name:"Fish/Chicken + 1 Veg | ECONOMY RICE DABAO",cal:280,protein:30,slot:"any",cat:"Mains"},
-  {name:"Thai Chicken Chop | PUNG PUNG",cal:290,protein:32,slot:"any",cat:"Mains"},
+  // Chicken
+  {name:"Chargrilled Chicken w/ Double Garden Salad | ASTON'S",cal:400,protein:45,slot:"any",cat:"Chicken"},
+  {name:"Rosemary Chicken (Grilled Thigh) | MDM YAP'S",cal:220,protein:38,slot:"any",cat:"Chicken"},
+  {name:"6-inch Chicken Breast Double Meat, Loaded Veg | SUBWAY",cal:420,protein:40,slot:"any",cat:"Chicken"},
+  {name:"3-inch Flatbread Chicken Sausage Egg Cheese | SUBWAY",cal:270,protein:14,slot:"any",cat:"Chicken"},
+  {name:"Steamed Chicken | THIEN KEE",cal:290,protein:36,slot:"any",cat:"Chicken"},
+  {name:"Grilled Chicken/Fish + 1 Veg | RADEN LINA",cal:250,protein:24,slot:"any",cat:"Chicken"},
+  {name:"Rotisserie Chicken Leg | COLD STORAGE/FAIRPRICE",cal:300,protein:36,slot:"any",cat:"Chicken"},
+  {name:"Fish/Chicken + 1 Veg | ECONOMY RICE DABAO",cal:280,protein:30,slot:"any",cat:"Chicken"},
+  {name:"Thai Chicken Chop | PUNG PUNG",cal:290,protein:32,slot:"any",cat:"Chicken"},
+  // Soups
+  {name:"Chicken Leg in Soup | HOME",cal:320,protein:38,slot:"any",cat:"Soups"},
   // Carbs
   {name:"White Rice - Half",cal:130,protein:2,slot:"any",cat:"Carbs"},
   {name:"White Rice - Full",cal:260,protein:4,slot:"any",cat:"Carbs"},
@@ -258,8 +259,7 @@ var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
 var editFoodId=null;
 var weightInputActive=false;
 var weightRange='3m'; // '3m','6m','1y','all'
-var collapsedCats=(function(){try{var v=localStorage.getItem('dos-collapsed-cats');return v?JSON.parse(v):{}}catch(e){return{}}})();
-function toggleCat(cat){collapsedCats[cat]=!collapsedCats[cat];try{localStorage.setItem('dos-collapsed-cats',JSON.stringify(collapsedCats))}catch(e){}R()}
+var collapsedCats={};
 var hydrationView='home'; // 'home' or 'cups'
 var hydrationExpanded=false;
 var hydrationEditId=null;
@@ -868,14 +868,6 @@ function rDay(){
           h+='<span style="color:var(--acc)">\u{2192}</span>';
           h+='<div style="padding:8px 14px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;font-size:14px;font-weight:600;color:var(--wht);cursor:pointer" onclick="openTimePicker('+i+',\'e\')">'+mTS(b.e)+'</div>';
           h+='<span style="font-size:12px;color:var(--dim)">'+durS(b.e-b.s)+'</span></div>';
-          var c1=b.s>=60,c2=b.s>=15,c3=b.e<=1440-15,c4=b.e<=1440-60;
-          h+='<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">';
-          h+='<span style="font-size:11px;color:var(--dim);margin-right:2px;min-width:36px">Move:</span>';
-          h+='<button onclick="shiftBlk('+i+',-60)"'+(c1?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(c1?'pointer':'not-allowed')+';opacity:'+(c1?'1':'0.35')+'">\u{2190} 1h</button>';
-          h+='<button onclick="shiftBlk('+i+',-15)"'+(c2?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(c2?'pointer':'not-allowed')+';opacity:'+(c2?'1':'0.35')+'">\u{2190} 15m</button>';
-          h+='<button onclick="shiftBlk('+i+',15)"'+(c3?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(c3?'pointer':'not-allowed')+';opacity:'+(c3?'1':'0.35')+'">15m \u{2192}</button>';
-          h+='<button onclick="shiftBlk('+i+',60)"'+(c4?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(c4?'pointer':'not-allowed')+';opacity:'+(c4?'1':'0.35')+'">1h \u{2192}</button>';
-          h+='</div>';
           var isPredefined=b.label&&ACTIVITIES.some(function(a){return a.l===b.label});
           var inCustomMode=b.label?!isPredefined:true;
           var selVal=b.label?(isPredefined?b.label:'_custom'):'';
@@ -1377,19 +1369,6 @@ function updBlk(i,field,val){
   updateBlockInDb(b);
   if(field==='cat'||field==='energy'||field==='status'||field==='label')R();
 }
-function shiftBlk(i,delta){
-  var day=ensureDay(curDate);
-  var b=day.blocks[i];
-  if(!b)return;
-  var newS=b.s+delta;
-  var newE=b.e+delta;
-  if(newS<0||newE>1440)return; // bounds check (button should be disabled but safety net)
-  b.s=newS;
-  b.e=newE;
-  sv();
-  updateBlockInDb(b);
-  R();
-}
 function delCustomActivity(label){
   if(!confirm('Remove "'+label+'" from My Activities? Existing blocks with this label keep their category.'))return;
   var toDelete=data.customActivities.filter(function(a){return a.l===label})[0];
@@ -1770,7 +1749,53 @@ async function loadMealDataFromDb(){
   svMeals();
 }
 
-// === HYDRATION HELPERS ===
+// === ONE-TIME CATEGORY MIGRATION ===
+// Runs once to re-categorise existing 'Mains' food items into new protein-based categories
+async function migrateCategoriesIfNeeded(){
+  if(!authUser)return;
+  var FLAG_KEY='dos-cat-migrated-v1';
+  try{if(localStorage.getItem(FLAG_KEY)==='true')return}catch(e){}
+  // Find items needing migration: in 'Mains' or with no category set
+  var toMigrate=mealData.foods.filter(function(f){
+    var c=f.cat||'';
+    return c==='Mains'||c===''||(FOOD_CATS.indexOf(c)<0&&c!=='Eggs'&&c!=='Sides'&&c!=='Carbs'&&c!=='Drinks'&&c!=='Snacks');
+  });
+  if(!toMigrate.length){
+    try{localStorage.setItem(FLAG_KEY,'true')}catch(e){}
+    return;
+  }
+  console.log('[migration] Re-categorising '+toMigrate.length+' food items');
+  var updates=[];
+  toMigrate.forEach(function(f){
+    var n=(f.name||'').toLowerCase();
+    var newCat=guessCategory(n);
+    if(newCat&&newCat!==f.cat){
+      f.cat=newCat;
+      updates.push(db.from('food_items').update({cat:newCat,updated_at:new Date().toISOString()}).eq('id',f._id));
+    }
+  });
+  try{
+    await Promise.all(updates);
+    svMeals();
+    try{localStorage.setItem(FLAG_KEY,'true')}catch(e){}
+    console.log('[migration] Done: '+updates.length+' items updated');
+  }catch(err){
+    console.error('[migration] Failed:',err);
+  }
+}
+
+function guessCategory(nameLower){
+  // Soups first (so chicken soup goes to Soups, not Chicken)
+  if(/\bsoup\b|bak kut teh|samgyetang|tonkotsu|paitan|tan-?men|miso\s+soup|tom\s+yum/.test(nameLower))return'Soups';
+  // Fish & Seafood (check before chicken because "fish or chicken" cases default here is wrong; we keep chicken priority for mixed names)
+  if(/fish|salmon|tuna|hamachi|sashimi|prawn|shrimp|ebi|unagi|ikura|tobiko|saba|mackerel|sea\s*bass|dory|sotong|cuttlefish|fish\s*maw|fish\s*ball|barramundi|cod|hotate|scallop|kaioh|chirashi|mentaiyaki|teriyaki\s+saba|crab/.test(nameLower))return'Fish & Seafood';
+  // Chicken
+  if(/chicken|char\s*siew|char\s*siu|tori|rendang|karaage|teriyaki\s+tori|yakitori|samgyetang/.test(nameLower))return'Chicken';
+  // Other meats
+  if(/beef|pork|lamb|bak\s*kut|tripe|stomach|pig|lap\s*cheong|sausage|bacon|ham|jerky|cutlet/.test(nameLower))return'Other Meats';
+  // Default for anything still in Mains: Other Meats (safest catch-all rather than guessing wrong)
+  return'Other Meats';
+}
 
 function getHydrationByDate(dateStr){
   if(!mealData.hydrationLogs)return 0;
@@ -2313,7 +2338,7 @@ function rMealSlot(){
       if(!catFoods.length)return;
       var isCollapsed=collapsedCats[cat]&&!mealSearchQ;
       var arrow=isCollapsed?'\u{25B8}':'\u{25BE}';
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="toggleCat(\''+cat+'\')">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="collapsedCats[\''+cat+'\']=!collapsedCats[\''+cat+'\'];R()">';
       h+='<span style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">'+cat+' <span style="font-weight:400;color:var(--dim)">('+catFoods.length+')</span></span>';
       h+='<span style="font-size:12px;color:var(--dim)">'+arrow+'</span>';
       h+='</div>';
@@ -2335,7 +2360,7 @@ function rMealSlot(){
     if(uncatFoods.length){
       var isCollapsed=collapsedCats['Other']&&!mealSearchQ;
       var arrow=isCollapsed?'\u{25B8}':'\u{25BE}';
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="toggleCat(\'Other\')">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding-left:2px;cursor:pointer" onclick="collapsedCats[\'Other\']=!collapsedCats[\'Other\'];R()">';
       h+='<span style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Other <span style="font-weight:400;color:var(--dim)">('+uncatFoods.length+')</span></span>';
       h+='<span style="font-size:12px;color:var(--dim)">'+arrow+'</span>';
       h+='</div>';
@@ -3049,6 +3074,7 @@ async function handleAuthState(session){
         console.log('[handleAuthState] Fresh data loaded');
         await loadMealDataFromDb();
         await seedFoodItems();
+        await migrateCategoriesIfNeeded();
         console.log('[handleAuthState] Meal data loaded');
         requestAnimationFrame(function(){
           try{R();console.log('[handleAuthState] R() complete, body length:',$.innerHTML.length)}catch(e){console.error('[handleAuthState] R() threw:',e)}
