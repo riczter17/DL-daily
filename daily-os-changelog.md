@@ -1,27 +1,37 @@
-## v4.11.2 (15 May 2026)
+## v4.12.0 (15 May 2026)
 
-### Quick-Shift Buttons for Block Times (re-merged)
-- Added "Move:" row inside expanded block view with four buttons: `← 1h`, `← 15m`, `15m →`, `1h →`
-- Shifts both start and end times by the same delta, preserving duration
-- Buttons auto-disable (greyed at 35% opacity, not-allowed cursor) when shift would push start below 00:00 or end past 24:00
-- Saves to Supabase via existing block update flow; realtime sync handled
-- Built for productivity gains on minute shifts to default template-generated blocks (avoids opening both time pickers)
-- **Note**: This feature was originally shipped in v4.10.5 but was lost when v4.11.0 was built from an older base. Re-merged on top of v4.11.1.
+### Quick Picks for Meal Slots
+Curated short list of go-to foods per meal slot, shown at the top of each slot view for faster logging.
 
----
+**Behaviour:**
+- New "Quick Picks" section sits between the "Add item" header and the search bar
+- Dashed accent border + star icon makes it visually distinct
+- Items shown are filtered to the current slot (breakfast / lunch / snack / dinner)
+- Tap to log directly, same as the categorised list
+- Collapsible per slot, state persists in localStorage key `dos-qp-collapsed`
+- Hidden during search so search results take the full screen
+- Hidden when the slot has no quick picks flagged
 
-## v4.11.1 (14 May 2026)
+**Flagging items as quick picks:**
+- Edit pencil on any food item now has 4 toggles: "Breakfast / Lunch / Snack / Dinner"
+- An item can be flagged for multiple slots (e.g. Oatside in both Breakfast and Snack)
+- When adding a new food item, the current slot is pre-ticked
+- Visual: ticked slots show in accent colour with accent border
 
-### Collapse All / Expand All for Food Categories
-- New toggle link above the food list in the meal slot view
-- Single button that flips between "Collapse all" and "Expand all" based on current state
-- Only acts on visible categories (those with items in the current slot)
-- Hidden during search (categories auto-expand when searching)
-- State persists in the same `dos-collapsed-cats` localStorage key as individual toggles
+**Data model:**
+- New `quick_pick_slots` TEXT[] column on `food_items` table
+- Defaults to empty array — no items pre-flagged
+- You flag manually after deploying
 
-### Collapsible Category State Persistence (recovered)
-- Individual category collapse state now persists in localStorage via `toggleCat()` function
-- Categories stay collapsed across navigation, re-renders, and page reloads
-- This was originally shipped in v4.10.4 but wasn't present in the v4.11.0 base file
+### SQL Migration Required
+
+Run `daily-os-quick-picks.sql` in Supabase SQL editor before deploying:
+
+```sql
+ALTER TABLE food_items 
+ADD COLUMN IF NOT EXISTS quick_pick_slots TEXT[] DEFAULT '{}';
+```
+
+Safe to run multiple times.
 
 ---

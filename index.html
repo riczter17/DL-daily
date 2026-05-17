@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.11.2";
+var VER="v4.12.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -255,7 +255,8 @@ var mealView='home'; // 'home','slot','add_food','weekly'
 var mealSlot=null;
 var mealSearchQ='';
 var mealDate=null; // null = today
-var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
+var nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains',qps:[]};
+var efState={qps:null}; // null = uninitialised, populated when edit_food opens
 var editFoodId=null;
 var weightInputActive=false;
 var weightRange='3m'; // '3m','6m','1y','all'
@@ -279,6 +280,17 @@ function areAllCatsCollapsed(){
 function setAllCatsCollapsed(collapsed){
   getVisibleCatsForSlot().forEach(function(c){collapsedCats[c]=collapsed});
   persistCollapsedCats();R();
+}
+var qpCollapsed=(function(){try{var v=localStorage.getItem('dos-qp-collapsed');return v?JSON.parse(v):{}}catch(e){return{}}})();
+function persistQpCollapsed(){try{localStorage.setItem('dos-qp-collapsed',JSON.stringify(qpCollapsed))}catch(e){}}
+function toggleQpCollapsed(slot){qpCollapsed[slot]=!qpCollapsed[slot];persistQpCollapsed();R()}
+function getQuickPicksForSlot(slot){
+  if(!slot)return[];
+  return mealData.foods.filter(function(f){
+    if(f.is_active===false)return false;
+    var qps=f.quick_pick_slots||[];
+    return qps.indexOf(slot)>=0;
+  }).sort(function(a,b){return a.name.localeCompare(b.name)});
 }
 var hydrationView='home'; // 'home' or 'cups'
 var hydrationExpanded=false;
@@ -1768,7 +1780,7 @@ async function loadMealDataFromDb(){
     db.from('hydration_settings').select('*').maybeSingle()
   ]);
   if(foodsRes.error||logsRes.error){console.error('loadMealData errors:',foodsRes.error,logsRes.error);return}
-  mealData.foods=foodsRes.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,cat:f.cat||'Mains',is_active:f.is_active}});
+  mealData.foods=foodsRes.data.map(function(f){return{_id:f.id,name:f.name,cal:f.cal,protein:f.protein,slot:f.slot,cat:f.cat||'Mains',is_active:f.is_active,quick_pick_slots:f.quick_pick_slots||[]}});
   var logs={};
   logsRes.data.forEach(function(l){
     if(!logs[l.date])logs[l.date]=[];
@@ -2069,26 +2081,28 @@ async function deleteMealLog(logId,date){
   svMeals();
 }
 
-async function insertFoodItem(name,cal,protein,slot,cat){
+async function insertFoodItem(name,cal,protein,slot,cat,quickPickSlots){
   if(!authUser)return null;
   noteLocalWrite();
-  var payload={user_id:authUser.id,name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',is_active:true};
+  var qps=quickPickSlots||[];
+  var payload={user_id:authUser.id,name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',is_active:true,quick_pick_slots:qps};
   var res=await db.from('food_items').insert(payload).select().single();
   if(res.error){console.error('insertFoodItem error:',res.error);return null}
-  var newFood={_id:res.data.id,name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',is_active:true};
+  var newFood={_id:res.data.id,name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',is_active:true,quick_pick_slots:qps};
   mealData.foods.push(newFood);
   svMeals();
   return newFood;
 }
 
-async function updateFoodItem(id,name,cal,protein,slot,cat){
+async function updateFoodItem(id,name,cal,protein,slot,cat,quickPickSlots){
   if(!authUser)return false;
   noteLocalWrite();
-  var payload={name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',updated_at:new Date().toISOString()};
+  var qps=quickPickSlots||[];
+  var payload={name:name,cal:cal,protein:protein,slot:slot,cat:cat||'Mains',quick_pick_slots:qps,updated_at:new Date().toISOString()};
   var res=await db.from('food_items').update(payload).eq('id',id);
   if(res.error){console.error('updateFoodItem error:',res.error);return false}
   var food=mealData.foods.find(function(f){return f._id===id});
-  if(food){food.name=name;food.cal=cal;food.protein=protein;food.slot=slot;food.cat=cat||'Mains'}
+  if(food){food.name=name;food.cal=cal;food.protein=protein;food.slot=slot;food.cat=cat||'Mains';food.quick_pick_slots=qps}
   svMeals();
   return true;
 }
@@ -2366,6 +2380,36 @@ function rMealSlot(){
   var tgt=MEAL_SLOT_TARGETS[mealSlot];
   h+='<div class="sec"><h2 class="sec-t">Add item</h2>';
   h+='<span style="font-size:11px;color:var(--dim)">Budget: '+tgt.min+'\u{2013}'+tgt.max+' kcal</span></div>';
+  // Quick Picks section - hidden during search
+  if(!mealSearchQ){
+    var qpFoods=getQuickPicksForSlot(mealSlot);
+    if(qpFoods.length){
+      var qpCol=qpCollapsed[mealSlot];
+      var qpArrow=qpCol?'\u{25B8}':'\u{25BE}';
+      h+='<div style="background:var(--acc-s);border:1px dashed var(--acc);border-radius:12px;padding:10px 12px;margin-bottom:12px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;'+(qpCol?'':'margin-bottom:8px')+'" onclick="toggleQpCollapsed(\''+mealSlot+'\')">';
+      h+='<div style="display:flex;align-items:center;gap:6px">';
+      h+='<span style="font-size:13px;color:var(--acc)">\u{2605}</span>';
+      h+='<span style="font-size:11px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:.5px">Quick picks</span>';
+      h+='<span style="font-size:11px;color:var(--dim)">('+qpFoods.length+')</span>';
+      h+='</div>';
+      h+='<span style="font-size:11px;color:var(--dim)">'+qpArrow+'</span>';
+      h+='</div>';
+      if(!qpCol){
+        qpFoods.forEach(function(f,fi){
+          var pcr=f.cal>0?(f.protein/f.cal*100).toFixed(1):'0';
+          h+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;'+(fi<qpFoods.length-1?'margin-bottom:5px;':'')+'display:flex;align-items:center;cursor:pointer" onclick="addMealItem(\''+f._id+'\')">';
+          h+='<div style="flex:1;min-width:0">';
+          h+='<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>';
+          h+='<div style="font-size:10px;color:var(--dim);margin-top:2px">'+f.cal+' kcal \u{00B7} '+f.protein+'g \u{00B7} P/C '+pcr+'</div>';
+          h+='</div>';
+          h+='<span style="color:var(--acc);font-size:18px;font-weight:700;margin-left:8px;flex-shrink:0">+</span>';
+          h+='</div>';
+        });
+      }
+      h+='</div>';
+    }
+  }
   h+='<input class="fld" id="mealSearch" type="text" placeholder="Search foods..." value="'+mealSearchQ+'" oninput="mealSearchQ=this.value;R()" style="margin-bottom:10px">';
   var foods=getFoodsForSlot(mealSlot);
   if(mealSearchQ){
@@ -2436,7 +2480,7 @@ function rMealSlot(){
 
 function rAddFood(){
   var slotLabel=mealSlot?mealSlot.charAt(0).toUpperCase()+mealSlot.slice(1):'Any';
-  var h='<div class="nav"><button class="bk" onclick="nfState={name:\'\',cal:\'\',pro:\'\',slot:\'any\',cat:\'Mains\'};view=\'meal_slot\';R()">\u{2190} Back</button><span class="nav-t">New Food Item</span><span style="width:40px"></span></div>';
+  var h='<div class="nav"><button class="bk" onclick="nfState={name:\'\',cal:\'\',pro:\'\',slot:\'any\',cat:\'Mains\',qps:[]};view=\'meal_slot\';R()">\u{2190} Back</button><span class="nav-t">New Food Item</span><span style="width:40px"></span></div>';
   h+='<div class="card">';
   h+='<label class="lbl">Name</label>';
   h+='<input class="fld" id="nfName" type="text" placeholder="e.g. Grilled Salmon | ICHIBAN" value="'+nfState.name.replace(/"/g,'&quot;')+'" oninput="nfState.name=this.value">';
@@ -2459,6 +2503,18 @@ function rAddFood(){
     h+='<option value="'+c+'"'+sel+'>'+c+'</option>';
   });
   h+='</select>';
+  // Quick Picks toggles - pre-tick current slot
+  h+='<label class="lbl mt12">Quick picks (show in slot)</label>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+  MEAL_SLOTS.forEach(function(s){
+    var on=nfState.qps.indexOf(s)>=0||(nfState.qps.length===0&&s===mealSlot);
+    var slotLbl=s.charAt(0).toUpperCase()+s.slice(1);
+    h+='<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid '+(on?'var(--acc)':'var(--bdr)')+';border-radius:8px;cursor:pointer;font-size:13px;color:'+(on?'var(--acc)':'var(--txt)')+'">';
+    h+='<input type="checkbox" id="nfQp_'+s+'"'+(on?' checked':'')+' style="margin:0;width:16px;height:16px;accent-color:var(--acc)">';
+    h+='<span>'+slotLbl+'</span>';
+    h+='</label>';
+  });
+  h+='</div>';
   h+='<button class="btn ba mt16" onclick="saveNewFood()">Save Item</button>';
   h+='<p id="nfMsg" style="font-size:12px;color:var(--mut);margin-top:8px;text-align:center"></p>';
   h+='</div>';
@@ -2471,14 +2527,15 @@ async function saveNewFood(){
   var pro=parseInt(document.getElementById('nfPro').value);
   var slot=document.getElementById('nfSlot').value;
   var cat=document.getElementById('nfCat').value;
+  var qps=MEAL_SLOTS.filter(function(s){var el=document.getElementById('nfQp_'+s);return el&&el.checked});
   var msg=document.getElementById('nfMsg');
   if(!name){msg.textContent='Enter a name.';msg.style.color='var(--red)';return}
   if(isNaN(cal)||cal<0){msg.textContent='Enter valid calories.';msg.style.color='var(--red)';return}
   if(isNaN(pro)||pro<0){msg.textContent='Enter valid protein.';msg.style.color='var(--red)';return}
   msg.textContent='Saving...';msg.style.color='var(--mut)';
-  var result=await insertFoodItem(name,cal,pro,slot,cat);
+  var result=await insertFoodItem(name,cal,pro,slot,cat,qps);
   if(result){
-    nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains'};
+    nfState={name:'',cal:'',pro:'',slot:'any',cat:'Mains',qps:[]};
     view='meal_slot';mealSearchQ='';R();
   }else{
     msg.textContent='Failed to save.';msg.style.color='var(--red)';
@@ -2503,6 +2560,19 @@ function rEditFood(){
     h+='<option value="'+c+'"'+sel+'>'+c+'</option>';
   });
   h+='</select>';
+  // Quick Picks toggles
+  var curQps=food.quick_pick_slots||[];
+  h+='<label class="lbl mt12">Quick picks (show in slot)</label>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+  MEAL_SLOTS.forEach(function(s){
+    var on=curQps.indexOf(s)>=0;
+    var slotLbl=s.charAt(0).toUpperCase()+s.slice(1);
+    h+='<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid '+(on?'var(--acc)':'var(--bdr)')+';border-radius:8px;cursor:pointer;font-size:13px;color:'+(on?'var(--acc)':'var(--txt)')+'">';
+    h+='<input type="checkbox" id="efQp_'+s+'"'+(on?' checked':'')+' style="margin:0;width:16px;height:16px;accent-color:var(--acc)">';
+    h+='<span>'+slotLbl+'</span>';
+    h+='</label>';
+  });
+  h+='</div>';
   h+='<button class="btn ba mt16" onclick="saveEditFood()">Save Changes</button>';
   h+='<p id="efMsg" style="font-size:12px;color:var(--mut);margin-top:8px;text-align:center"></p>';
   h+='</div>';
@@ -2518,12 +2588,13 @@ async function saveEditFood(){
   var cal=parseInt(document.getElementById('efCal').value);
   var pro=parseInt(document.getElementById('efPro').value);
   var cat=document.getElementById('efCat').value;
+  var qps=MEAL_SLOTS.filter(function(s){var el=document.getElementById('efQp_'+s);return el&&el.checked});
   var msg=document.getElementById('efMsg');
   if(!name){msg.textContent='Enter a name.';msg.style.color='var(--red)';return}
   if(isNaN(cal)||cal<0){msg.textContent='Enter valid calories.';msg.style.color='var(--red)';return}
   if(isNaN(pro)||pro<0){msg.textContent='Enter valid protein.';msg.style.color='var(--red)';return}
   msg.textContent='Saving...';msg.style.color='var(--mut)';
-  var ok=await updateFoodItem(editFoodId,name,cal,pro,'any',cat);
+  var ok=await updateFoodItem(editFoodId,name,cal,pro,'any',cat,qps);
   if(ok){
     editFoodId=null;view='meal_slot';mealSearchQ='';R();
   }else{
