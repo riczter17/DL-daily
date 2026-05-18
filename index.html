@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.12.3";
+var VER="v4.12.4";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -2126,9 +2126,20 @@ function mealStatusColour(current,target){
   return'var(--mut)';
 }
 
-function mealBar(label,current,target,unit,primary){
+function mealBar(label,current,target,unit,primary,direction){
+  // direction: 'ceiling' (calories - under is fine, over is bad)
+  //            'floor' (protein - under is bad, over is achievement)
   var pct=Math.min(100,target>0?Math.round(current/target*100):0);
-  var col=current>target?'var(--red)':mealStatusColour(current,target);
+  var isOver=current>target;
+  var dir=direction||'ceiling';
+  var col;
+  if(dir==='floor'){
+    // Floor: hitting/exceeding target = green; under = accent fill
+    col=isOver||current>=target?'var(--grn)':mealStatusColour(current,target);
+  }else{
+    // Ceiling: over = red; otherwise normal fill
+    col=isOver?'var(--red)':mealStatusColour(current,target);
+  }
   // Primary (protein): larger numbers, taller bar, accent flame
   // Secondary (calories): smaller numbers, slimmer bar, muted
   var labelSize=primary?'13px':'12px';
@@ -2138,7 +2149,8 @@ function mealBar(label,current,target,unit,primary){
   var barHeight=primary?'10px':'6px';
   var barRadius=primary?'5px':'3px';
   var remSize=primary?'11px':'10px';
-  var iconHtml=primary?'<span style="color:var(--acc);font-size:13px;margin-right:4px">\u{1F525}</span>':'';
+  var iconColor=primary?col:'var(--acc)';
+  var iconHtml=primary?'<span style="color:'+iconColor+';font-size:13px;margin-right:4px">\u{1F525}</span>':'';
   var h='<div>';
   h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:'+(primary?'6px':'4px')+'">';
   h+='<span style="font-size:'+labelSize+';font-weight:'+(primary?'700':'600')+';color:'+labelColor+';display:flex;align-items:center">'+iconHtml+label+'</span>';
@@ -2151,7 +2163,18 @@ function mealBar(label,current,target,unit,primary){
   if(remaining>0){
     h+='<div style="font-size:'+remSize+';color:var(--dim);margin-top:3px">'+remaining+unit+' remaining</div>';
   }else if(remaining<0){
-    h+='<div style="font-size:'+remSize+';color:var(--red);margin-top:3px">'+Math.abs(remaining)+unit+' over</div>';
+    if(dir==='floor'){
+      // Over a floor target = positive
+      h+='<div style="font-size:'+remSize+';color:var(--grn);font-weight:600;margin-top:3px">\u{2713} +'+Math.abs(remaining)+unit+' over target</div>';
+    }else{
+      // Over a ceiling target = warning
+      h+='<div style="font-size:'+remSize+';color:var(--red);margin-top:3px">'+Math.abs(remaining)+unit+' over</div>';
+    }
+  }else{
+    // Exactly at target
+    if(dir==='floor'){
+      h+='<div style="font-size:'+remSize+';color:var(--grn);font-weight:600;margin-top:3px">\u{2713} Target hit</div>';
+    }
   }
   h+='</div>';
   return h;
@@ -2174,9 +2197,9 @@ function rMeals(){
   h+='</div>';
   // Dashboard
   h+='<div class="card">';
-  h+=mealBar('Protein',totals.protein,MEAL_TARGETS.protein,'g',true);
+  h+=mealBar('Protein',totals.protein,MEAL_TARGETS.protein,'g',true,'floor');
   h+='<div style="height:1px;background:var(--bdr);margin:12px 0"></div>';
-  h+=mealBar('Calories',totals.cal,MEAL_TARGETS.cal,' kcal',false);
+  h+=mealBar('Calories',totals.cal,MEAL_TARGETS.cal,' kcal',false,'ceiling');
   h+='</div>';
   // Hydration card
   var hMl=getHydrationByDate(d);

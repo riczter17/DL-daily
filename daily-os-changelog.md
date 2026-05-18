@@ -1,30 +1,19 @@
-## v4.12.3 (15 May 2026)
+## v4.12.4 (15 May 2026)
 
-### Dashboard: Protein-First Reorder
-- Protein now sits at the top of the meal dashboard, ahead of calories
-- Visual hierarchy reflects that protein is the harder daily target to hit and deserves more attention
-- Protein gets larger numbers (18px), bolder weight, taller progress bar (10px), and a flame icon
-- Calories sits below, smaller (13px), thinner bar (6px), muted styling — still functional, visually secondary
-- Divider line between them reinforces the hierarchy
-- Both bars still respect over/under target colour changes
+### Dashboard: Floor vs Ceiling Logic
+The protein bar and calorie bar now behave differently to match how each metric should actually be read.
 
----
+**Protein (floor metric — under is bad, over is achievement):**
+- Below target: accent colour fills as you go, "Xg remaining"
+- At target: green bar with "✓ Target hit"
+- Over target: green bar with "✓ +Xg over target" (celebrate, not warn)
+- Flame icon also turns green when target is hit/exceeded
 
-## v4.12.2 (15 May 2026)
+**Calories (ceiling metric — under is fine, over is bad):**
+- Below target: muted fill, "X kcal remaining"
+- At target: green
+- Over target: red bar with "X kcal over" (warning, unchanged from before)
 
-### Calorie Target Recalibrated to 2,000
-- Daily calorie target raised from 1,800 to 2,000 kcal
-- Better reflects realistic daily intake when prioritising 145g protein
-- Still represents a meaningful deficit from maintenance (~2,400-2,500 kcal)
-
-### Slot Budgets Adjusted
-| Slot | Old | New |
-|------|-----|-----|
-| Breakfast | 240-320 | 260-360 |
-| Lunch | 400-500 | 440-540 |
-| Snack | 150-250 | 150-250 (unchanged) |
-| Dinner | 600-700 | 680-840 |
-
-Dinner absorbs the largest share of the increase; snack stays unchanged.
+**Why this matters:** Hitting 151g protein on a 145g target should feel like a win, not a warning. The UI now reflects that.
 
 ---
