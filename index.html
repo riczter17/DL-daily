@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.12.0";
+var VER="v4.12.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -759,7 +759,7 @@ function rHome(){
   var td=getDay(today);
   if(!td){h+='<button class="btn ba" style="margin-top:16px" onclick="curDate=\''+today+'\';ensureDay(\''+today+'\');view=\'day\';R()">Start Today \u{00B7} '+fd(today)+'</button>';}
   else{var checked=0;data.checklist.forEach(function(c){if(td.checklist[c.id])checked++});h+='<button class="btn ba" style="margin-top:16px" onclick="curDate=\''+today+'\';view=\'day\';R()">\u{270F}\u{FE0F} Today \u{00B7} '+fd(today)+' \u{00B7} '+checked+'/'+data.checklist.length+' checked</button>';}
-  h+='<button class="btn ba" style="margin-top:8px" onclick="view=\'meals\';mealView=\'home\';R()">\u{1F372} Meal Tracker</button>';
+  h+='<button class="btn ba" style="margin-top:8px" onclick="view=\'meals\';mealView=\'home\';R()">\u{1F372} Meal & Hydration Tracker</button>';
 
   // UPCOMING section (collapsible)
   var upcomingCollapsed=collapseState.upcoming;
@@ -2154,7 +2154,7 @@ function rMeals(){
   var diff=Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(86400000));
   var canGoBack=diff<2;
   var canGoFwd=d<today;
-  var h='<div class="nav"><button class="bk" onclick="view=\'home\';mealDate=null;R()">\u{2190} Back</button><span class="nav-t">\u{1F372} Meals</span><span style="width:40px"></span></div>';
+  var h='<div class="nav"><button class="bk" onclick="view=\'home\';mealDate=null;R()">\u{2190} Back</button><span class="nav-t">\u{1F372} Meals & Hydration</span><span style="width:40px"></span></div>';
   // Date navigation
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:0 4px">';
   h+='<button onclick="shiftMealDate(-1);R()" style="width:36px;height:36px;border-radius:8px;border:1px solid '+(canGoBack?'var(--bdr)':'transparent')+';background:'+(canGoBack?'var(--bg)':'transparent')+';color:'+(canGoBack?'var(--txt)':'var(--bg)')+';font-size:16px;cursor:'+(canGoBack?'pointer':'default')+'">'+(canGoBack?'\u{2039}':'')+'</button>';
