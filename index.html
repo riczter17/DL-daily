@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.12.2";
+var VER="v4.12.3";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -2126,22 +2126,32 @@ function mealStatusColour(current,target){
   return'var(--mut)';
 }
 
-function mealBar(label,current,target,unit){
+function mealBar(label,current,target,unit,primary){
   var pct=Math.min(100,target>0?Math.round(current/target*100):0);
   var col=current>target?'var(--red)':mealStatusColour(current,target);
-  var h='<div style="margin-bottom:12px">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">';
-  h+='<span style="font-size:12px;font-weight:600;color:var(--mut)">'+label+'</span>';
-  h+='<span style="font-size:14px;font-weight:700;color:'+col+'">'+current+' <span style="font-weight:400;color:var(--dim)">/ '+target+unit+'</span></span>';
+  // Primary (protein): larger numbers, taller bar, accent flame
+  // Secondary (calories): smaller numbers, slimmer bar, muted
+  var labelSize=primary?'13px':'12px';
+  var labelColor=primary?'var(--txt)':'var(--mut)';
+  var numSize=primary?'18px':'13px';
+  var numWeight=primary?'700':'600';
+  var barHeight=primary?'10px':'6px';
+  var barRadius=primary?'5px':'3px';
+  var remSize=primary?'11px':'10px';
+  var iconHtml=primary?'<span style="color:var(--acc);font-size:13px;margin-right:4px">\u{1F525}</span>':'';
+  var h='<div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:'+(primary?'6px':'4px')+'">';
+  h+='<span style="font-size:'+labelSize+';font-weight:'+(primary?'700':'600')+';color:'+labelColor+';display:flex;align-items:center">'+iconHtml+label+'</span>';
+  h+='<span style="font-size:'+numSize+';font-weight:'+numWeight+';color:'+col+'">'+current+' <span style="font-size:'+(primary?'13px':'12px')+';font-weight:400;color:var(--dim)">/ '+target+unit+'</span></span>';
   h+='</div>';
-  h+='<div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">';
-  h+='<div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:4px;transition:width .3s"></div>';
+  h+='<div style="height:'+barHeight+';background:var(--bg);border-radius:'+barRadius+';overflow:hidden">';
+  h+='<div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:'+barRadius+';transition:width .3s"></div>';
   h+='</div>';
   var remaining=target-current;
   if(remaining>0){
-    h+='<div style="font-size:11px;color:var(--dim);margin-top:3px">'+remaining+unit+' remaining</div>';
+    h+='<div style="font-size:'+remSize+';color:var(--dim);margin-top:3px">'+remaining+unit+' remaining</div>';
   }else if(remaining<0){
-    h+='<div style="font-size:11px;color:var(--red);margin-top:3px">'+Math.abs(remaining)+unit+' over</div>';
+    h+='<div style="font-size:'+remSize+';color:var(--red);margin-top:3px">'+Math.abs(remaining)+unit+' over</div>';
   }
   h+='</div>';
   return h;
@@ -2164,8 +2174,9 @@ function rMeals(){
   h+='</div>';
   // Dashboard
   h+='<div class="card">';
-  h+=mealBar('Calories',totals.cal,MEAL_TARGETS.cal,' kcal');
-  h+=mealBar('Protein',totals.protein,MEAL_TARGETS.protein,'g');
+  h+=mealBar('Protein',totals.protein,MEAL_TARGETS.protein,'g',true);
+  h+='<div style="height:1px;background:var(--bdr);margin:12px 0"></div>';
+  h+=mealBar('Calories',totals.cal,MEAL_TARGETS.cal,' kcal',false);
   h+='</div>';
   // Hydration card
   var hMl=getHydrationByDate(d);
