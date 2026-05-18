@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.12.1";
+var VER="v4.12.2";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -206,12 +206,12 @@ var CHECKLIST_DEF=[
 ];
 
 var MEAL_SLOTS=['breakfast','lunch','snack','dinner'];
-var MEAL_TARGETS={cal:1800,protein:145};
+var MEAL_TARGETS={cal:2000,protein:145};
 var MEAL_SLOT_TARGETS={
-  breakfast:{min:240,max:320},
-  lunch:{min:400,max:500},
+  breakfast:{min:260,max:360},
+  lunch:{min:440,max:540},
   snack:{min:150,max:250},
-  dinner:{min:600,max:700}
+  dinner:{min:680,max:840}
 };
 var MEAL_KS='dos-meals';
 var FOOD_CATS=['Eggs','Chicken','Fish & Seafood','Other Meats','Soups','Sides','Carbs','Drinks','Snacks'];
