@@ -1,3 +1,51 @@
+## v4.14.0 (22 May 2026)
+
+### Daily reflection replaces Day notes
+The free-form "Day notes" textarea is replaced with a structured reflection section, drawn from the May 2026 tarot reading's "force focus on positives" practice. Existing day notes content is preserved as free-form notes at the bottom of the new section.
+
+**New structure:**
+- **Three wins (any size):** three single-line inputs for things that went well today, small or large
+- **Reframe:** two fields — a negative thought from today, and what's also true alongside it
+- **Gratitude (optional):** a one-line entry
+- **Notes:** the original free-form textarea, preserved at the bottom
+
+**Storage:** structured fields are encoded as JSON inside the existing `notes` column (no Supabase schema change required). If any structured field is filled, the column holds JSON; if everything is empty except the free-form field, the column reverts to plain text. Legacy plain-text content is auto-migrated into the free-form notes field on first read.
+
+### Activity reminders
+Selected activities now carry a contextual reminder that appears in the expanded block view, drawn from the May 2026 tarot reading. The reminder shows as a single italic line with a left accent border, directly under the block header. Passive display only, no interaction needed.
+
+| Activity | Reminder |
+|----------|----------|
+| Meditation | Today's focus: surrender. |
+| Walk | Walk with intention. Release burdens to nature. |
+| Parents time | Focus on her happiness, not improvement. |
+| Wind down | Real rest is no thinking. Notice rumination. |
+| Rest | Real rest is no thinking. Notice rumination. |
+
+Reminders are baked into the predefined activity definitions. Custom activities do not carry reminders in this version. If a reminder needs editing, change the `r:` field on the relevant entry in the `ACTIVITIES` array.
+
+### Manual setup: coaching exploration goal
+This is not a code change. Add the following yourself via Home → Goals → Edit goals:
+
+**Goal name:** Explore coaching/counselling path
+
+**Description (paste into the goal's description field):**
+> Starter actions:
+> - Reach out to Chris, Shirleen, or Seto about restructuring sessions around coaching exploration
+> - Read about ICF certification requirements
+> - Identify three practising coaches for informational chats
+>
+> Later actions:
+> - Listen to one coaching podcast a week
+> - Attend a coaching webinar or workshop
+> - Journal about what draws me to coaching specifically
+> - Try a coaching session as a client
+> - Identify a coaching specialty interest (executive, life, career, counselling)
+
+Goals are user data stored per-account in Supabase, so they can't be seeded via the HTML file. The setup is one-time.
+
+---
+
 ## v4.13.1 (21 May 2026)
 
 ### Weekday template overhaul: later wake, evening meditation

@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.13.1";
+var VER="v4.14.0";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -133,10 +133,10 @@ var DTYPES=[
 function gDT(id){for(var i=0;i<DTYPES.length;i++)if(DTYPES[i].id===id)return DTYPES[i];return null}
 
 var ACTIVITIES=[
-  {l:"Meditation",cat:"health",grp:"Health"},
+  {l:"Meditation",cat:"health",grp:"Health",r:"Today's focus: surrender."},
   {l:"Workout",cat:"health",grp:"Health"},
   {l:"Couples workout",cat:"health",grp:"Health"},
-  {l:"Walk",cat:"health",grp:"Health"},
+  {l:"Walk",cat:"health",grp:"Health",r:"Walk with intention. Release burdens to nature."},
   {l:"Stretch",cat:"health",grp:"Health"},
   {l:"Counselling",cat:"health",grp:"Health"},
   {l:"Medical appointment",cat:"health",grp:"Health"},
@@ -144,14 +144,14 @@ var ACTIVITIES=[
   {l:"BP reading",cat:"health",grp:"Health"},
   {l:"Prep",cat:"personal",grp:"Personal"},
   {l:"Meal",cat:"personal",grp:"Personal"},
-  {l:"Wind down",cat:"personal",grp:"Personal"},
+  {l:"Wind down",cat:"personal",grp:"Personal",r:"Real rest is no thinking. Notice rumination."},
   {l:"Shower",cat:"personal",grp:"Personal"},
   {l:"Haircut",cat:"personal",grp:"Personal"},
   {l:"Personal project",cat:"personal",grp:"Personal"},
   {l:"Work",cat:"work",grp:"Work"},
   {l:"Priority work",cat:"work",grp:"Work"},
   {l:"Wife time",cat:"family",grp:"Family"},
-  {l:"Parents time",cat:"family",grp:"Family"},
+  {l:"Parents time",cat:"family",grp:"Family",r:"Focus on her happiness, not improvement."},
   {l:"Family time",cat:"family",grp:"Family"},
   {l:"Commute",cat:"commute",grp:"Commute"},
   {l:"Chores",cat:"chores",grp:"Chores"},
@@ -159,7 +159,7 @@ var ACTIVITIES=[
   {l:"Groceries",cat:"chores",grp:"Chores"},
   {l:"Errands",cat:"chores",grp:"Chores"},
   {l:"Nap",cat:"rest",grp:"Rest"},
-  {l:"Rest",cat:"rest",grp:"Rest"},
+  {l:"Rest",cat:"rest",grp:"Rest",r:"Real rest is no thinking. Notice rumination."},
   {l:"Netflix / TV",cat:"fun",grp:"Fun"},
   {l:"Movie outing",cat:"fun",grp:"Fun"},
   {l:"Social gathering",cat:"fun",grp:"Fun"},
@@ -889,6 +889,10 @@ function rDay(){
         h+='</div></div>';
         if(isOpen){
           h+='<div class="blk-body">';
+          var actObj=gAct(b.label);
+          if(actObj&&actObj.r){
+            h+='<div style="font-style:italic;font-size:12px;color:var(--dim);padding:6px 0 6px 10px;border-left:2px solid var(--acc);margin-bottom:10px">'+escapeHtml(actObj.r)+'</div>';
+          }
           h+='<div style="display:flex;gap:8px;align-items:center;margin:8px 0">';
           h+='<div style="padding:8px 14px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;font-size:14px;font-weight:600;color:var(--wht);cursor:pointer" onclick="openTimePicker('+i+',\'s\')">'+mTS(b.s)+'</div>';
           h+='<span style="color:var(--acc)">\u{2192}</span>';
@@ -966,7 +970,20 @@ function rDay(){
       });
       h+='</div>';
     }
-    h+='<div class="sec"><label class="lbl">Day notes</label><textarea rows="3" placeholder="Reflections, observations..." onblur="updDayNote(this.value)">'+(day.notes||'')+'</textarea></div>';
+    var refl=parseDayReflection(day.notes||'');
+    h+='<div class="sec" style="margin-top:14px"><h2 class="sec-t">Daily reflection</h2>';
+    h+='<label class="lbl">Three wins (any size)</label>';
+    for(var w=0;w<3;w++){
+      h+='<input type="text" class="fld" placeholder="'+(w+1)+'." value="'+escapeHtml(refl.wins[w]||'')+'" onblur="updWin('+w+',this.value)" style="margin-bottom:6px">';
+    }
+    h+='<label class="lbl mt8">Reframe</label>';
+    h+='<textarea rows="2" class="fld" placeholder="A negative thought from today..." onblur="updReframe(\'neg\',this.value)" style="margin-bottom:6px">'+escapeHtml(refl.reframeNeg)+'</textarea>';
+    h+='<textarea rows="2" class="fld" placeholder="What\'s also true alongside it..." onblur="updReframe(\'pos\',this.value)" style="margin-bottom:6px">'+escapeHtml(refl.reframePos)+'</textarea>';
+    h+='<label class="lbl mt8">Gratitude (optional)</label>';
+    h+='<input type="text" class="fld" placeholder="One thing you\'re grateful for" value="'+escapeHtml(refl.gratitude)+'" onblur="updGratitude(this.value)" style="margin-bottom:10px">';
+    h+='<label class="lbl mt8">Notes</label>';
+    h+='<textarea rows="3" class="fld" placeholder="Anything else, free-form..." onblur="updDayNote(this.value)">'+escapeHtml(refl.freeform)+'</textarea>';
+    h+='</div>';
   }
   $.innerHTML=h;
 }
@@ -1488,7 +1505,75 @@ function sortBlocksByTime(){
   openBlk=null;sv();R();
 }
 //function updDayNote(v){var day=ensureDay(curDate);day.notes=v;sv()}
-function updDayNote(v){var day=ensureDay(curDate);day.notes=v;sv();saveDayToDb(curDate)}
+// === DAY REFLECTION (v4.14.0) ===
+// Structured fields are encoded as JSON within day.notes so existing schema is preserved.
+// Plain text in day.notes is treated as legacy free-form notes and migrated into the freeform field.
+function parseDayReflection(notesStr){
+  var def={wins:['','',''],reframeNeg:'',reframePos:'',gratitude:'',freeform:''};
+  if(!notesStr)return def;
+  if(notesStr.charAt(0)==='{'){
+    try{
+      var p=JSON.parse(notesStr);
+      if(p&&typeof p==='object'&&p.v==='r1'){
+        return{
+          wins:(p.wins&&p.wins.length===3)?p.wins:['','',''],
+          reframeNeg:p.reframeNeg||'',
+          reframePos:p.reframePos||'',
+          gratitude:p.gratitude||'',
+          freeform:p.freeform||''
+        };
+      }
+    }catch(e){}
+  }
+  // Plain text → freeform
+  def.freeform=notesStr;
+  return def;
+}
+function serializeDayReflection(r){
+  var hasStructured=
+    (r.wins&&r.wins.some(function(w){return w&&w.trim()}))||
+    (r.reframeNeg&&r.reframeNeg.trim())||
+    (r.reframePos&&r.reframePos.trim())||
+    (r.gratitude&&r.gratitude.trim());
+  if(!hasStructured)return r.freeform||'';
+  return JSON.stringify({
+    v:'r1',
+    wins:r.wins||['','',''],
+    reframeNeg:r.reframeNeg||'',
+    reframePos:r.reframePos||'',
+    gratitude:r.gratitude||'',
+    freeform:r.freeform||''
+  });
+}
+function updWin(idx,v){
+  var day=ensureDay(curDate);
+  var r=parseDayReflection(day.notes);
+  r.wins[idx]=v;
+  day.notes=serializeDayReflection(r);
+  sv();saveDayToDb(curDate);
+}
+function updReframe(field,v){
+  var day=ensureDay(curDate);
+  var r=parseDayReflection(day.notes);
+  if(field==='neg')r.reframeNeg=v;
+  else if(field==='pos')r.reframePos=v;
+  day.notes=serializeDayReflection(r);
+  sv();saveDayToDb(curDate);
+}
+function updGratitude(v){
+  var day=ensureDay(curDate);
+  var r=parseDayReflection(day.notes);
+  r.gratitude=v;
+  day.notes=serializeDayReflection(r);
+  sv();saveDayToDb(curDate);
+}
+function updDayNote(v){
+  var day=ensureDay(curDate);
+  var r=parseDayReflection(day.notes);
+  r.freeform=v;
+  day.notes=serializeDayReflection(r);
+  sv();saveDayToDb(curDate);
+}
 function openTimePicker(idx,field){pickerTarget=true;pickerBlkIdx=idx;pickerField=field;R()}
 function pickH(h){
   var b=ensureDay(curDate).blocks[pickerBlkIdx];
