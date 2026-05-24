@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.14.0";
+var VER="v4.14.1";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -571,7 +571,7 @@ var $=document.getElementById("app");
 
 // Per-section collapse state, persisted in localStorage
 var COLLAPSE_KS="dos-collapse";
-var collapseState=(function(){try{var v=localStorage.getItem(COLLAPSE_KS);return v?JSON.parse(v):{goals:true,upcoming:true,past:true}}catch(e){return{goals:true,upcoming:true,past:true}}})();
+var collapseState=(function(){try{var v=localStorage.getItem(COLLAPSE_KS);var saved=v?JSON.parse(v):{};return{goals:saved.goals!==undefined?saved.goals:true,upcoming:saved.upcoming!==undefined?saved.upcoming:true,past:saved.past!==undefined?saved.past:true,reflection:saved.reflection!==undefined?saved.reflection:true}}catch(e){return{goals:true,upcoming:true,past:true,reflection:true}}})();
 function toggleSection(key){collapseState[key]=!collapseState[key];try{localStorage.setItem(COLLAPSE_KS,JSON.stringify(collapseState))}catch(e){}R()}
 function escapeHtml(s){if(s==null)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
@@ -971,7 +971,20 @@ function rDay(){
       h+='</div>';
     }
     var refl=parseDayReflection(day.notes||'');
-    h+='<div class="sec" style="margin-top:14px"><h2 class="sec-t">Daily reflection</h2>';
+    var reflCollapsed=collapseState.reflection;
+    // Count filled fields for the hint
+    var reflFilled=0;
+    if(refl.wins)for(var rw=0;rw<3;rw++){if(refl.wins[rw]&&refl.wins[rw].trim())reflFilled++}
+    if(refl.reframeNeg&&refl.reframeNeg.trim())reflFilled++;
+    if(refl.reframePos&&refl.reframePos.trim())reflFilled++;
+    if(refl.gratitude&&refl.gratitude.trim())reflFilled++;
+    if(refl.freeform&&refl.freeform.trim())reflFilled++;
+    h+='<div class="sec" style="margin-top:14px">';
+    h+='<div onclick="toggleSection(\'reflection\')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 4px">';
+    h+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut)">'+(reflCollapsed?'\u{25B8}':'\u{25BE}')+'</span><h2 class="sec-t" style="margin-bottom:0">Daily reflection</h2></div>';
+    h+='<div style="font-size:11px;color:var(--dim)">'+(reflFilled===0?'Not started':reflFilled+' field'+(reflFilled===1?'':'s')+' filled')+'</div>';
+    h+='</div>';
+    if(!reflCollapsed){
     h+='<label class="lbl">Three wins (any size)</label>';
     for(var w=0;w<3;w++){
       h+='<input type="text" class="fld" placeholder="'+(w+1)+'." value="'+escapeHtml(refl.wins[w]||'')+'" onblur="updWin('+w+',this.value)" style="margin-bottom:6px">';
@@ -983,6 +996,7 @@ function rDay(){
     h+='<input type="text" class="fld" placeholder="One thing you\'re grateful for" value="'+escapeHtml(refl.gratitude)+'" onblur="updGratitude(this.value)" style="margin-bottom:10px">';
     h+='<label class="lbl mt8">Notes</label>';
     h+='<textarea rows="3" class="fld" placeholder="Anything else, free-form..." onblur="updDayNote(this.value)">'+escapeHtml(refl.freeform)+'</textarea>';
+    }
     h+='</div>';
   }
   $.innerHTML=h;
@@ -3024,8 +3038,39 @@ function rWeightHistory(){
   h+='</svg>';
   h+='</div>';
   
+  // Recent entries (last 10 from all data, newest first)
+  var recent=allWeights.slice(-10).reverse();
+  if(recent.length>0){
+    h+='<div class="card" style="padding:14px;margin-top:12px">';
+    h+='<div style="font-size:12px;font-weight:600;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Recent entries</div>';
+    recent.forEach(function(entry,idx){
+      // Compare with the next entry in 'recent' (which is older since list is reversed)
+      var prev=recent[idx+1];
+      var deltaStr='';var deltaCol='var(--dim)';
+      if(prev){
+        var diff=entry.weight-prev.weight;
+        if(Math.abs(diff)<0.05){
+          deltaStr='-';
+          deltaCol='var(--dim)';
+        }else if(diff<0){
+          deltaStr=diff.toFixed(1)+' kg';
+          deltaCol='var(--grn)';
+        }else{
+          deltaStr='+'+diff.toFixed(1)+' kg';
+          deltaCol='var(--red)';
+        }
+      }
+      var brd=idx===0?'':'border-top:1px solid var(--bdr);';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px;'+brd+'">';
+      h+='<span style="color:var(--dim)">'+fd(entry.date)+'</span>';
+      h+='<span style="display:flex;align-items:center;gap:10px"><span style="font-weight:700">'+entry.weight.toFixed(1)+' kg</span><span style="font-size:12px;color:'+deltaCol+';font-weight:600;min-width:60px;text-align:right">'+deltaStr+'</span></span>';
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+  
   // Key dates (always from all data)
-  h+='<div class="card" style="padding:14px">';
+  h+='<div class="card" style="padding:14px;margin-top:12px">';
   h+='<div style="font-size:12px;font-weight:600;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Key dates</div>';
   h+='<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">';
   h+='<span style="color:var(--dim)">Lowest</span>';

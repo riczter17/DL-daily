@@ -1,3 +1,32 @@
+## v4.14.1 (24 May 2026)
+
+### Daily reflection collapsible
+The Daily reflection section on the day view now follows the same collapse pattern as Goals, Upcoming, and Past sections. Tap the header to expand or collapse.
+
+**Default state:** collapsed.
+
+**State persistence:** localStorage via the existing `collapseState` mechanism, alongside the other three sections.
+
+**Header hint:** the right side of the header shows "Not started" or "N fields filled" so you can see at a glance whether anything has been captured without expanding.
+
+**Why this matters:** the section was always visible and added vertical length to every day view, even on days when reflection isn't the priority. Now it's tucked away until summoned.
+
+### Recent weight entries
+A new "Recent entries" card has been added to the Weight History view, sitting between the chart and the Key dates card. Shows the last 10 weight logs in reverse chronological order (most recent first).
+
+**Each row shows:**
+- **Date** of the log
+- **Weight** in kg
+- **Delta from the previous entry** in the list, colour-coded:
+  - Green for a decrease
+  - Red for an increase
+  - Dim dash for unchanged (within 0.05 kg)
+- The oldest entry in the list of 10 shows no delta (nothing earlier to compare against in the visible list)
+
+**Why this matters:** the chart and stats are good for trend understanding across months, but they don't help when you want to see the most recent few logs at a glance. This card fills that gap.
+
+---
+
 ## v4.14.0 (22 May 2026)
 
 ### Daily reflection replaces Day notes
