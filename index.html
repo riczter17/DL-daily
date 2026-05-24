@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.14.1";
+var VER="v4.14.2";
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -3038,34 +3038,107 @@ function rWeightHistory(){
   h+='</svg>';
   h+='</div>';
   
-  // Recent entries (last 10 from all data, newest first)
-  var recent=allWeights.slice(-10).reverse();
-  if(recent.length>0){
+  // Recent entries (last 10 from all data, chronological for chart)
+  var recent=allWeights.slice(-10);
+  if(recent.length>=2){
+    var rW=recent.map(function(w){return w.weight});
+    var rMin=Math.min.apply(null,rW);
+    var rMax=Math.max.apply(null,rW);
+    var yMin=Math.floor(rMin-0.5);
+    var yMax=Math.ceil(rMax+0.5);
+    if(yMax-yMin<2){yMax=yMin+2} // ensure minimum 2kg range for readability
+    var yRange=yMax-yMin;
+    
+    var rcw=340,rch=145;
+    var rpad={t:14,r:12,b:33,l:32};
+    var rpw=rcw-rpad.l-rpad.r;
+    var rph=rch-rpad.t-rpad.b;
+    
+    function rxPos(i){return rpad.l+(i/(recent.length-1))*rpw}
+    function ryPos(w){return rpad.t+rph-((w-yMin)/yRange)*rph}
+    
+    var rPoints=recent.map(function(w,i){return rxPos(i).toFixed(2)+','+ryPos(w.weight).toFixed(2)}).join(' ');
+    var rAreaPoints=rpad.l+','+(rpad.t+rph)+' '+rPoints+' '+(rpad.l+rpw)+','+(rpad.t+rph);
+    
+    function rShortDate(dStr){var d=new Date(dStr+'T00:00:00');return d.getDate()+'/'+(d.getMonth()+1)}
+    
+    h+='<div class="card" style="padding:14px;margin-top:12px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    h+='<div style="font-size:12px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Recent entries</div>';
+    h+='<div style="font-size:10px;color:var(--dim)">Last '+recent.length+'</div>';
+    h+='</div>';
+    
+    h+='<svg viewBox="0 0 '+rcw+' '+rch+'" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">';
+    h+='<defs><linearGradient id="wgr" x1="0" y1="0" x2="0" y2="1">';
+    h+='<stop offset="0%" stop-color="var(--acc)" stop-opacity="0.25"/>';
+    h+='<stop offset="100%" stop-color="var(--acc)" stop-opacity="0.02"/>';
+    h+='</linearGradient></defs>';
+    
+    // Y-axis grid lines and labels (integer values from yMin to yMax)
+    for(var gv=yMin;gv<=yMax;gv++){
+      var gy=ryPos(gv);
+      h+='<line x1="'+rpad.l+'" y1="'+gy.toFixed(2)+'" x2="'+(rcw-rpad.r)+'" y2="'+gy.toFixed(2)+'" stroke="var(--bdr)" stroke-width="0.5"/>';
+      h+='<text x="'+(rpad.l-4)+'" y="'+(gy+3).toFixed(2)+'" text-anchor="end" fill="var(--dim)" font-size="9">'+gv+'</text>';
+    }
+    
+    // X-axis date labels (up to 4 anchor points: first, ~1/3, ~2/3, last)
+    var labelIdx=[0];
+    if(recent.length>=4){
+      labelIdx.push(Math.floor((recent.length-1)/3));
+      labelIdx.push(Math.floor(2*(recent.length-1)/3));
+    }else if(recent.length===3){
+      labelIdx.push(1);
+    }
+    labelIdx.push(recent.length-1);
+    // Dedupe in case length is small
+    var seenLi={};labelIdx=labelIdx.filter(function(i){if(seenLi[i])return false;seenLi[i]=true;return true});
+    labelIdx.forEach(function(i){
+      h+='<text x="'+rxPos(i).toFixed(2)+'" y="'+(rch-rpad.b+15)+'" text-anchor="middle" fill="var(--dim)" font-size="9">'+rShortDate(recent[i].date)+'</text>';
+    });
+    
+    // Area fill + line
+    h+='<polygon points="'+rAreaPoints+'" fill="url(#wgr)"/>';
+    h+='<polyline points="'+rPoints+'" fill="none" stroke="var(--acc)" stroke-width="1.5" stroke-linejoin="round"/>';
+    
+    // Dots: directionally coloured
+    recent.forEach(function(entry,i){
+      var col='var(--dim)';
+      if(i>0){
+        var diff=entry.weight-recent[i-1].weight;
+        if(Math.abs(diff)<0.05)col='var(--dim)';
+        else if(diff<0)col='var(--grn)';
+        else col='var(--red)';
+      }
+      var isLast=i===recent.length-1;
+      var r=isLast?4.5:2.8;
+      var stroke=isLast?' stroke="var(--txt)" stroke-width="1.5"':'';
+      h+='<circle cx="'+rxPos(i).toFixed(2)+'" cy="'+ryPos(entry.weight).toFixed(2)+'" r="'+r+'"'+stroke+' fill="'+col+'"/>';
+    });
+    
+    // Latest weight value label (above the latest dot)
+    var lastEntry=recent[recent.length-1];
+    var lastX=rxPos(recent.length-1);
+    var lastY=ryPos(lastEntry.weight);
+    h+='<text x="'+lastX.toFixed(2)+'" y="'+(lastY-8).toFixed(2)+'" text-anchor="end" fill="var(--txt)" font-size="10" font-weight="600">'+lastEntry.weight.toFixed(1)+'</text>';
+    
+    h+='</svg>';
+    
+    // Summary footer: range + net change
+    var firstEntry=recent[0];
+    var rChange=lastEntry.weight-firstEntry.weight;
+    var rChangeStr=rChange>0?'+'+rChange.toFixed(1):rChange.toFixed(1);
+    var rChangeCol=rChange<-0.05?'var(--grn)':rChange>0.05?'var(--red)':'var(--dim)';
+    h+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);display:flex;justify-content:space-between;font-size:11px">';
+    h+='<span style="color:var(--dim)">'+recent.length+' entries \u{00B7} '+fd(firstEntry.date)+' to '+fd(lastEntry.date)+'</span>';
+    h+='<span style="color:'+rChangeCol+';font-weight:600">'+rChangeStr+' kg</span>';
+    h+='</div>';
+    
+    h+='</div>';
+  }else if(recent.length===1){
+    // Single entry fallback
     h+='<div class="card" style="padding:14px;margin-top:12px">';
     h+='<div style="font-size:12px;font-weight:600;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Recent entries</div>';
-    recent.forEach(function(entry,idx){
-      // Compare with the next entry in 'recent' (which is older since list is reversed)
-      var prev=recent[idx+1];
-      var deltaStr='';var deltaCol='var(--dim)';
-      if(prev){
-        var diff=entry.weight-prev.weight;
-        if(Math.abs(diff)<0.05){
-          deltaStr='-';
-          deltaCol='var(--dim)';
-        }else if(diff<0){
-          deltaStr=diff.toFixed(1)+' kg';
-          deltaCol='var(--grn)';
-        }else{
-          deltaStr='+'+diff.toFixed(1)+' kg';
-          deltaCol='var(--red)';
-        }
-      }
-      var brd=idx===0?'':'border-top:1px solid var(--bdr);';
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px;'+brd+'">';
-      h+='<span style="color:var(--dim)">'+fd(entry.date)+'</span>';
-      h+='<span style="display:flex;align-items:center;gap:10px"><span style="font-weight:700">'+entry.weight.toFixed(1)+' kg</span><span style="font-size:12px;color:'+deltaCol+';font-weight:600;min-width:60px;text-align:right">'+deltaStr+'</span></span>';
-      h+='</div>';
-    });
+    h+='<div style="text-align:center;padding:12px 0;font-size:13px;color:var(--dim)">Only one entry so far. Log a few more to see the chart.</div>';
     h+='</div>';
   }
   

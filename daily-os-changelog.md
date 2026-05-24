@@ -1,3 +1,25 @@
+## v4.14.2 (24 May 2026)
+
+### Recent entries: list replaced with compact chart
+The list-based Recent entries card introduced in v4.14.1 has been replaced with a graphical version, validated via mockup before build.
+
+**New card:**
+- Compact line chart showing the last 10 individual weight logs (no weekly aggregation, unlike the main chart)
+- Y-axis grid lines at integer kg values, padded to a minimum 2 kg range for readability
+- X-axis date labels at up to 4 anchor points (first, ~1/3, ~2/3, last) to avoid clutter
+- Dots are directionally colour-coded against the previous entry: green for decrease, red for increase, dim for unchanged (within 0.05 kg)
+- The latest entry is highlighted with a larger dot, white border, and inline weight value
+- Footer line shows entry count, date range span, and net change across the visible 10 entries
+
+**Edge cases:**
+- 0 entries: card not shown (existing upstream check)
+- 1 entry: fallback message ("Only one entry so far, log a few more to see the chart")
+- 2-9 entries: chart drawn with fewer points; date label anchors adapt
+
+**Why the change:** the list version surfaced the same data but didn't add anything the brain wasn't already doing with text. The chart shows trajectory at a glance.
+
+---
+
 ## v4.14.1 (24 May 2026)
 
 ### Daily reflection collapsible
@@ -11,19 +33,8 @@ The Daily reflection section on the day view now follows the same collapse patte
 
 **Why this matters:** the section was always visible and added vertical length to every day view, even on days when reflection isn't the priority. Now it's tucked away until summoned.
 
-### Recent weight entries
-A new "Recent entries" card has been added to the Weight History view, sitting between the chart and the Key dates card. Shows the last 10 weight logs in reverse chronological order (most recent first).
-
-**Each row shows:**
-- **Date** of the log
-- **Weight** in kg
-- **Delta from the previous entry** in the list, colour-coded:
-  - Green for a decrease
-  - Red for an increase
-  - Dim dash for unchanged (within 0.05 kg)
-- The oldest entry in the list of 10 shows no delta (nothing earlier to compare against in the visible list)
-
-**Why this matters:** the chart and stats are good for trend understanding across months, but they don't help when you want to see the most recent few logs at a glance. This card fills that gap.
+### Recent weight entries (later replaced in v4.14.2)
+A "Recent entries" card was added to the Weight History view as a list. Replaced in v4.14.2 with a chart after mockup review.
 
 ---
 
