@@ -1,3 +1,25 @@
+## v4.14.3 (24 May 2026)
+
+### Recent entries: anchored to tracking baseline (1 May 2026)
+The Recent entries chart now filters to entries on or after 1 May 2026, marking the start of the period where calorie and protein tracking became central to Daily OS (Meal Tracker shipped in v4.2.0 on 4 May; 1 May used as the cleaner month-boundary anchor).
+
+**Behaviour:**
+- Weight entries before 1 May 2026 are excluded from the Recent entries chart
+- The "last 10" cap still applies, taken from the filtered set
+- When fewer than 10 entries exist since the baseline, the chart shows whatever's available (3, 5, 8 entries, etc.); as more weight is logged, the chart fills up to 10 and then rolls forward like the original Last 10 behaviour
+- Existing chart rendering unchanged (line chart, directionally-coloured dots, latest highlighted, summary footer)
+
+**Fallback states:**
+- 0 entries since 1 May: card shows "No entries since 1 May. Log a weight to see your journey."
+- 1 entry since 1 May: card shows "Only one entry since 1 May. Log a few more to see the chart."
+- 2+ entries: chart renders normally
+
+**Why the change:** the previous "Last 10" view could pull entries from before active nutrition tracking began, muddying the narrative. Anchoring to 1 May ties the weight chart to the period where it actually carries signal (tracked nutrition vs. observed weight change).
+
+**Note:** the Key dates card and the summary stats at the top of Weight History still use all available data, including pre-baseline entries. Only the Recent entries chart applies the filter.
+
+---
+
 ## v4.14.2 (24 May 2026)
 
 ### Recent entries: list replaced with compact chart
