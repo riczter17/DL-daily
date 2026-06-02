@@ -1,20 +1,33 @@
-## v4.15.0 (2 June 2026)
+## v4.16.0 (2 June 2026)
 
-### Daily reflection: Reframe section hidden
-The Reframe section (the two fields: a negative thought from today, and what's also true alongside it) is now hidden from the Daily reflection UI. Wins, Gratitude, and Notes are unchanged.
+### Templates: open up self-directed time, relocate meditation into wind-down
+A template overhaul to lighten the day. Driven by the Daily OS review: self-directed blocks were being skipped 90-100% of the time, so they're now removed and that time is left open rather than scheduled-then-skipped.
 
-**Behaviour:**
-- The Reframe label and its two textareas no longer render in the day view.
-- A single feature flag controls this: `var SHOW_REFRAME=false;` near the top of the script. Set it to `true` to bring the section back exactly as it was. No other change needed.
-- The "N fields filled" header hint no longer counts the reframe fields while hidden, so a hidden section can't skew the count.
+**Self-directed blocks removed (left as empty open slots):**
+- Weekday templates: "Self-time / Hobby" removed.
+- Sunday: "Reading", "Leisure / hobby", and "Personal project" removed.
+- Each freed window becomes a single empty "Tap to set" slot, not a deleted gap, so the time reads as deliberately open.
 
-**Data preserved (nothing discarded):**
-- `parseDayReflection`, `serializeDayReflection`, and `updReframe` still handle `reframeNeg` and `reframePos` in full.
-- All past reframe entries remain in the `notes` JSON and round-trip safely. If the flag is flipped back on, prior entries reappear in their fields.
+**Wife time removed from weekday nights:**
+- The three weekday templates no longer carry an evening "Wife time" block.
+- Saturday's morning "Wife time" is kept (only weekday-evening Wife time was in scope).
 
-**Important for evaluations:** while hidden, `reframeNeg` and `reframePos` will always read empty because there is no input to fill them. This absence is by design and must not be interpreted as signal (e.g. avoidance, low reflection, or decline) in any Daily OS review.
+**Meditation relocated to night practice:**
+- Existing meditation blocks (weekday early-evening, weekend morning) removed; their slots become open.
+- Meditation is now the last 15 minutes of the wind-down block on every template.
+- On weekday office/WFH days this lands at exactly 22:15-22:30 (10:15-10:30pm). On other day types it sits at the end of that template's wind-down. No sleep time changed on any template.
 
-**Why the change:** the daily reflection felt too heavy. Removing the reframe step lightens the daily practice while keeping the option to restore it later.
+**How it's applied:**
+- `migrateTpl416()` transforms templates by block label (not by template key), so it correctly covers all template ids including the legacy `w_wfh` key in existing data.
+- Defaults (`DEF_TEMPLATES`) are transformed for new installs and resets.
+- Existing saved templates are migrated once, guarded by a `data.mig416` flag.
+- Adjacent empty slots are merged into one.
+
+**Scope notes:**
+- Existing logged days are not changed. Template edits only affect future day-type applications, consistent with prior template changes.
+- Sunday becomes largely open by design (three open windows through the day). Flag if you want some structure returned to it.
+
+**Important for evaluations:** the new empty open slots carry a blank label and no category. They are intentional open time and must not be read as skipped activities or as any kind of signal in Daily OS reviews.
 
 ---
 

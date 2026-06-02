@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.15.0";
+var VER="v4.16.0";
 // Daily reflection: set to true to bring the Reframe section back (hidden in v4.15.0).
 // When false, the Reframe inputs are not rendered. Stored reframe data is preserved either way.
 var SHOW_REFRAME=false;
@@ -509,6 +509,40 @@ var DEF_TEMPLATES={
   custom:[]
 };
 
+// === v4.16.0: open up self-directed time + relocate meditation into wind-down ===
+// Transforms a template (by block label, not key, so it works across all template ids):
+//  - Self-directed blocks (Self-time/Hobby, Leisure/hobby, Reading, Personal project) -> empty open slot
+//  - Weekday-evening Wife time (start >= 19:00) -> empty open slot (Saturday morning Wife time is kept)
+//  - Existing Meditation blocks removed; meditation re-added as the last 15 min of Wind down (no sleep change)
+//  - Adjacent empty slots merged into one
+function migrateTpl416(tpl){
+  if(!tpl||!tpl.length)return tpl;
+  var SELF=["Self-time / Hobby","Leisure / hobby","Reading","Personal project"];
+  var out=tpl.map(function(b){
+    if(SELF.indexOf(b.label)>=0)return{s:b.s,e:b.e,label:"",cat:""};
+    if(b.label==="Wife time"&&b.s>=1140)return{s:b.s,e:b.e,label:"",cat:""};
+    if(b.label==="Meditation")return{s:b.s,e:b.e,label:"",cat:""};
+    return{s:b.s,e:b.e,label:b.label,cat:b.cat};
+  });
+  for(var i=0;i<out.length;i++){
+    if(out[i].label==="Wind down"){
+      var wd=out[i];
+      if(wd.e-wd.s>15){out[i]={s:wd.s,e:wd.e-15,label:"Wind down",cat:"personal"};out.splice(i+1,0,{s:wd.e-15,e:wd.e,label:"Meditation",cat:"health"});}
+      else{out[i]={s:wd.s,e:wd.e,label:"Meditation",cat:"health"};}
+      break;
+    }
+  }
+  out.sort(function(a,b){return a.s-b.s});
+  var merged=[];
+  out.forEach(function(b){
+    var last=merged[merged.length-1];
+    if(last&&last.label===""&&b.label===""&&last.e===b.s){last.e=b.e;}
+    else merged.push(b);
+  });
+  return merged;
+}
+Object.keys(DEF_TEMPLATES).forEach(function(k){if(k!=='custom')DEF_TEMPLATES[k]=migrateTpl416(DEF_TEMPLATES[k]);});
+
 var KS="dos-v2";
 var THEME_KS="dos-theme";
 function ld(){try{var v=localStorage.getItem(KS);return v?JSON.parse(v):null}catch(e){return null}}
@@ -565,6 +599,8 @@ if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stri
 (function(){if(!data.checklist)return;var before=data.checklist.length;data.checklist=data.checklist.filter(function(c){return c.id!=='bp'});if(data.checklist.length!==before){Object.keys(data.days||{}).forEach(function(d){if(data.days[d].checklist&&data.days[d].checklist.bp!==undefined){delete data.days[d].checklist.bp}});sv()}})();
 // Migrate old status values
 (function(){var changed=false;Object.keys(data.days).forEach(function(d){var dy=data.days[d];if(dy.blocks)dy.blocks.forEach(function(b){if(b.status==='done'){b.status='planned';changed=true}if(b.status==='skip'){b.status='skipped';changed=true}})});if(changed)sv()})();
+// v4.16.0: one-time migration of existing templates (open self-directed time + relocate meditation)
+(function(){if(!data||!data.templates||data.mig416)return;Object.keys(data.templates).forEach(function(k){if(k!=='custom')data.templates[k]=migrateTpl416(data.templates[k]);});data.mig416=true;sv();})();
 
 var view="home",curDate=null,openBlk=null,openWeeks={},openCL=false;
 var pickerTarget=null,pickerBlkIdx=null,pickerField=null;
