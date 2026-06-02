@@ -104,7 +104,10 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.14.3";
+var VER="v4.15.0";
+// Daily reflection: set to true to bring the Reframe section back (hidden in v4.15.0).
+// When false, the Reframe inputs are not rendered. Stored reframe data is preserved either way.
+var SHOW_REFRAME=false;
 var authUser=null;
 var CATS=[
   {id:"work",l:"Work",e:"\u{1F4BC}",c:"#7a8aad"},
@@ -975,8 +978,10 @@ function rDay(){
     // Count filled fields for the hint
     var reflFilled=0;
     if(refl.wins)for(var rw=0;rw<3;rw++){if(refl.wins[rw]&&refl.wins[rw].trim())reflFilled++}
-    if(refl.reframeNeg&&refl.reframeNeg.trim())reflFilled++;
-    if(refl.reframePos&&refl.reframePos.trim())reflFilled++;
+    if(SHOW_REFRAME){
+      if(refl.reframeNeg&&refl.reframeNeg.trim())reflFilled++;
+      if(refl.reframePos&&refl.reframePos.trim())reflFilled++;
+    }
     if(refl.gratitude&&refl.gratitude.trim())reflFilled++;
     if(refl.freeform&&refl.freeform.trim())reflFilled++;
     h+='<div class="sec" style="margin-top:14px">';
@@ -989,9 +994,11 @@ function rDay(){
     for(var w=0;w<3;w++){
       h+='<input type="text" class="fld" placeholder="'+(w+1)+'." value="'+escapeHtml(refl.wins[w]||'')+'" onblur="updWin('+w+',this.value)" style="margin-bottom:6px">';
     }
+    if(SHOW_REFRAME){
     h+='<label class="lbl mt8">Reframe</label>';
     h+='<textarea rows="2" class="fld" placeholder="A negative thought from today..." onblur="updReframe(\'neg\',this.value)" style="margin-bottom:6px">'+escapeHtml(refl.reframeNeg)+'</textarea>';
     h+='<textarea rows="2" class="fld" placeholder="What\'s also true alongside it..." onblur="updReframe(\'pos\',this.value)" style="margin-bottom:6px">'+escapeHtml(refl.reframePos)+'</textarea>';
+    }
     h+='<label class="lbl mt8">Gratitude (optional)</label>';
     h+='<input type="text" class="fld" placeholder="One thing you\'re grateful for" value="'+escapeHtml(refl.gratitude)+'" onblur="updGratitude(this.value)" style="margin-bottom:10px">';
     h+='<label class="lbl mt8">Notes</label>';

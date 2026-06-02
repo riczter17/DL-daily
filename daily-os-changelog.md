@@ -1,3 +1,23 @@
+## v4.15.0 (2 June 2026)
+
+### Daily reflection: Reframe section hidden
+The Reframe section (the two fields: a negative thought from today, and what's also true alongside it) is now hidden from the Daily reflection UI. Wins, Gratitude, and Notes are unchanged.
+
+**Behaviour:**
+- The Reframe label and its two textareas no longer render in the day view.
+- A single feature flag controls this: `var SHOW_REFRAME=false;` near the top of the script. Set it to `true` to bring the section back exactly as it was. No other change needed.
+- The "N fields filled" header hint no longer counts the reframe fields while hidden, so a hidden section can't skew the count.
+
+**Data preserved (nothing discarded):**
+- `parseDayReflection`, `serializeDayReflection`, and `updReframe` still handle `reframeNeg` and `reframePos` in full.
+- All past reframe entries remain in the `notes` JSON and round-trip safely. If the flag is flipped back on, prior entries reappear in their fields.
+
+**Important for evaluations:** while hidden, `reframeNeg` and `reframePos` will always read empty because there is no input to fill them. This absence is by design and must not be interpreted as signal (e.g. avoidance, low reflection, or decline) in any Daily OS review.
+
+**Why the change:** the daily reflection felt too heavy. Removing the reframe step lightens the daily practice while keeping the option to restore it later.
+
+---
+
 ## v4.14.3 (24 May 2026)
 
 ### Recent entries: anchored to tracking baseline (1 May 2026)
