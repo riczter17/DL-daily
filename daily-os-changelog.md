@@ -1,3 +1,29 @@
+## v4.16.1 (8 June 2026)
+
+### Hotfix: stop templates and work blocks being wiped (empty-category data loss)
+
+Fixes the bug where several templates dropped to 0 blocks on their own (WIO, WFH, WFH with wife, Saturday, Sunday) while the Mum templates survived, and where work blocks were deleted from the current day and prior days even after being manually recreated.
+
+**Root cause:** the v4.16.0 migration converted removed blocks (Self-time/Hobby, Meditation, evening Wife time, Reading, Leisure, Personal project) into open slots carrying an empty category (`cat:""`). The Supabase write paths delete before they insert with no rollback:
+- `saveTemplateToDb` deletes all of a template's blocks, then inserts the new ones.
+- `applyDayType` deletes a day's existing blocks, then inserts the template's blocks.
+
+The empty category was rejected on insert, so after the delete succeeded the insert failed and nothing was written back, leaving the template or day empty. Only templates containing the removed labels carried empty-category slots, which is why the Mum templates (no such labels) were untouched.
+
+**Fixes:**
+- Open slots now carry the `personal` category instead of an empty string. Open-ness is still determined by the empty label, so they display and behave as open time. `migrateTpl416` emits `cat:"personal"` for the three open-slot conversions.
+- All three database write points (`insertBlockToDb`, `updateBlockInDb`, `saveTemplateToDb`) sanitise the category with `b.cat||'personal'`, so no empty category can reach Supabase even from older local data. Every template and day-block insert now succeeds, which removes the failure that caused the wipe.
+- Open (empty-label) and category-less blocks are now excluded from "Time by Category" and "Skipped by Category", so open time is never read as a signal in reviews, and the analysis view can no longer crash on a category-less block.
+
+**Restoring the wiped templates:** after deploying this build, tapping Reset All Templates is safe and rebuilds every template from defaults. Note this overwrites all templates with current defaults, including the three surviving Mum templates.
+
+**Not addressed (by design for this hotfix):**
+- Lost day blocks are not restored.
+- Transactional safety on `saveTemplateToDb` (so a failed insert can never follow a successful delete) would need a server-side Supabase function. The sanitisation removes the actual trigger, so this is deferred.
+- `migrateTpl416` is not idempotent (it splits 15 minutes off Wind down for Meditation on every run, and the `mig416` completion flag is discarded on database reload). Low risk today because the re-migrated local copy is overwritten by the database before it is saved, but flagged as a follow-up.
+
+---
+
 ## v4.16.0 (2 June 2026)
 
 ### Templates: open up self-directed time, relocate meditation into wind-down
