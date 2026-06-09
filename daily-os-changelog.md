@@ -1,3 +1,22 @@
+## v4.16.2 (9 June 2026)
+
+### Hotfix: paginate database reads (1000-row cap was silently dropping blocks)
+
+Fixes work blocks (and any other data past the first 1000 rows) disappearing from the app despite being safely stored in Supabase.
+
+**Root cause:** the app loaded each table with a single unpaginated `select('*')`. Supabase caps a single read at 1000 rows by default. Once the `blocks` table grew past 1000 (confirmed at 1086), every load silently returned only the first 1000 rows and dropped the rest. The overflow happened to include the current day's most-recently-inserted work blocks, so they never reached the app's memory and never rendered, on every hard refresh, tab switch and token refresh. The data was never deleted; it just wasn't being read back. This was the true cause behind the "work blocks keep getting deleted" reports; the earlier empty-template and `day_types` issues were separate problems layered on top.
+
+**Fixes:**
+- Added a `fetchAllRows` helper that pages through a table in 1000-row batches until every row is fetched.
+- `loadDataFromDb` now paginates the tables that grow with daily use: `blocks`, `days`, `day_checklist`. Bounded tables (templates, template_blocks, activities, checklist items, goals) stay as single reads.
+- `loadMealDataFromDb` now paginates `food_items`, `meal_logs`, `weight_logs` and `hydration_logs` for the same reason, with their existing ordering preserved. `hydration_cups` and `hydration_settings` stay as single reads (bounded / single-row).
+
+**Notes:**
+- Duplicate blocks were cleaned up separately in the database; pagination alone would have displayed them all regardless.
+- Each load now makes one extra request per paginated table only when that table exceeds 1000 rows (e.g. blocks currently needs two requests). Negligible for personal use. If load time ever becomes a concern at much larger volumes, scoping the block read to a date range is an option.
+
+---
+
 ## v4.16.1 (8 June 2026)
 
 ### Hotfix: stop templates and work blocks being wiped (empty-category data loss)
