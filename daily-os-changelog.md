@@ -1,3 +1,22 @@
+## v4.16.3 (12 June 2026)
+
+### Duration control: relative adjust buttons replace fixed presets
+
+The Duration row in the expanded block view now mirrors the Move row: instead of snapping to fixed presets, it grows or shrinks the block in relative steps.
+
+**Change:**
+- The Duration preset chips (15m / 30m / 45m / 1h / 1h 30m / 2h) are replaced with four relative buttons: `− 1h | − 15m | + 15m | + 1h`.
+- Start time stays pinned; each button moves the end time by the step, resizing the block. This is the Duration counterpart to the Move row, which shifts the whole block.
+- The current duration still shows next to the end time, so the removed preset highlight is no loss.
+
+**Bounds (buttons disable at the edges, with a safety net in the handler):**
+- Grow can't pass midnight: `+15m` disables when the block already ends at midnight; `+1h` disables when it ends after 23:00.
+- Shrink can't drop below a 15-minute block: `−15m` disables when the block is already 15 min; `−1h` disables when it is 60 min or shorter.
+
+**Code:** `setDur(i, mins)` (absolute, preset-driven) is replaced by `adjDur(i, delta)` (relative). No other callers existed.
+
+---
+
 ## v4.16.2 (9 June 2026)
 
 ### Hotfix: paginate database reads (1000-row cap was silently dropping blocks)

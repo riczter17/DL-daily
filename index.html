@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.16.2";
+var VER="v4.16.3";
 // Daily reflection: set to true to bring the Reframe section back (hidden in v4.15.0).
 // When false, the Reframe inputs are not rendered. Stored reframe data is preserved either way.
 var SHOW_REFRAME=false;
@@ -945,18 +945,14 @@ function rDay(){
           h+='<button onclick="shiftBlk('+i+',15)"'+(c3?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(c3?'pointer':'not-allowed')+';opacity:'+(c3?'1':'0.35')+'">15m \u{2192}</button>';
           h+='<button onclick="shiftBlk('+i+',60)"'+(c4?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(c4?'pointer':'not-allowed')+';opacity:'+(c4?'1':'0.35')+'">1h \u{2192}</button>';
           h+='</div>';
-          var curDur=b.e-b.s;
-          var durPresets=[{m:15,l:"15m"},{m:30,l:"30m"},{m:45,l:"45m"},{m:60,l:"1h"},{m:90,l:"1h 30m"},{m:120,l:"2h"}];
+          var dur=b.e-b.s;
+          var d1=dur>=75,d2=dur>=30,d3=b.e<=1440-15,d4=b.e<=1440-60;
           h+='<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">';
           h+='<span style="font-size:11px;color:var(--dim);margin-right:2px;min-width:36px">Duration:</span>';
-          durPresets.forEach(function(p){
-            var fits=b.s+p.m<=1440;
-            var active=curDur===p.m;
-            var bdr=active?'var(--acc)':'var(--bdr)';
-            var bg=active?'var(--acc-s)':'var(--bg)';
-            var col=active?'var(--acc)':'var(--txt)';
-            h+='<button onclick="setDur('+i+','+p.m+')"'+(fits?'':' disabled')+' style="flex:1;padding:6px 4px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid '+bdr+';background:'+bg+';color:'+col+';cursor:'+(fits?'pointer':'not-allowed')+';opacity:'+(fits?'1':'0.35')+'">'+p.l+'</button>';
-          });
+          h+='<button onclick="adjDur('+i+',-60)"'+(d1?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(d1?'pointer':'not-allowed')+';opacity:'+(d1?'1':'0.35')+'">\u{2212} 1h</button>';
+          h+='<button onclick="adjDur('+i+',-15)"'+(d2?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(d2?'pointer':'not-allowed')+';opacity:'+(d2?'1':'0.35')+'">\u{2212} 15m</button>';
+          h+='<button onclick="adjDur('+i+',15)"'+(d3?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(d3?'pointer':'not-allowed')+';opacity:'+(d3?'1':'0.35')+'">+ 15m</button>';
+          h+='<button onclick="adjDur('+i+',60)"'+(d4?'':' disabled')+' style="flex:1;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);cursor:'+(d4?'pointer':'not-allowed')+';opacity:'+(d4?'1':'0.35')+'">+ 1h</button>';
           h+='</div>';
           var isPredefined=b.label&&ACTIVITIES.some(function(a){return a.l===b.label});
           var inCustomMode=b.label?!isPredefined:true;
@@ -1503,12 +1499,12 @@ function shiftBlk(i,delta){
   updateBlockInDb(b);
   R();
 }
-function setDur(i,mins){
+function adjDur(i,delta){
   var day=ensureDay(curDate);
   var b=day.blocks[i];
   if(!b)return;
-  var newE=b.s+mins;
-  if(newE>1440||mins<=0)return; // bounds check (button should be disabled but safety net)
+  var newE=b.e+delta;
+  if(newE>1440||newE-b.s<15)return; // can't pass midnight or shrink below 15min (buttons disable these; safety net)
   b.e=newE;
   sv();
   updateBlockInDb(b);
