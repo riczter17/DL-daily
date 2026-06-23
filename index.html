@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.16.3";
+var VER="v4.16.4";
 // Daily reflection: set to true to bring the Reframe section back (hidden in v4.15.0).
 // When false, the Reframe inputs are not rendered. Stored reframe data is preserved either way.
 var SHOW_REFRAME=false;
@@ -1416,19 +1416,25 @@ async function applyDayType(dtId,replaceTpl){
   var checklist=day.checklist||{};var notes=day.notes||"";var cl=day.customLabel||"";
   day.dayType=dtId;
   if(replaceTpl||!day.blocks.length){
-    // Delete old blocks from Supabase first
-    var oldIds=day.blocks.map(function(b){return b._id}).filter(function(id){return id});
+    if(dayBlocksWriting)return; // C: ignore concurrent / double-fired applies
     var tpl=data.templates[dtId]||[];
+    var dateForWrite=curDate; // capture; user may navigate during the async write
     day.blocks=tpl.map(function(b){return{s:b.s,e:b.e,label:b.label,cat:b.cat,energy:null,note:"",status:"planned",src:"tpl"}});
     day.checklist=checklist;day.notes=notes;day.customLabel=cl;
     openBlk=null;
     sv();
-    saveDayToDb(curDate);
+    saveDayToDb(dateForWrite);
     R();
-    // Async cleanup and inserts: delete old blocks, then insert new blocks
+    // A+B+C: authoritative write. Delete ALL blocks for this date (clears any orphans
+    // the old delete-by-id path could never see), then one bulk insert. Guarded so a
+    // realtime reload cannot swap state mid-write.
     if(authUser){
-      for(var i=0;i<oldIds.length;i++){await deleteBlockFromDb(oldIds[i])}
-      for(var j=0;j<day.blocks.length;j++){await insertBlockToDb(curDate,day.blocks[j])}
+      dayBlocksWriting=true;bulkOpInProgress=true;
+      try{
+        await deleteBlocksForDateFromDb(dateForWrite);
+        await insertBlocksToDb(dateForWrite,day.blocks);
+      }catch(e){console.error('applyDayType write failed:',e)}
+      finally{dayBlocksWriting=false;bulkOpInProgress=false;noteLocalWrite();}
     }
   }else{
     day.checklist=checklist;day.notes=notes;day.customLabel=cl;
@@ -1752,6 +1758,38 @@ async function deleteBlockFromDb(blockId){
   noteLocalWrite();
   var result=await db.from('blocks').delete().eq('id',blockId);
   if(result.error)console.error('deleteBlockFromDb error:',result.error);
+}
+
+// A: delete every block row for a (user,date). Used by applyDayType so a replace
+// clears any orphan/duplicate rows, not just the ones currently held in memory.
+async function deleteBlocksForDateFromDb(date){
+  if(!authUser)return;
+  noteLocalWrite();
+  var result=await db.from('blocks').delete().eq('user_id',authUser.id).eq('date',date);
+  if(result.error)console.error('deleteBlocksForDateFromDb error:',result.error);
+}
+
+// B: insert a whole day's blocks in one request, then map the returned ids back onto
+// the local block objects by order (PostgREST returns rows in insertion order).
+async function insertBlocksToDb(date,localBlocks){
+  if(!authUser||!localBlocks||!localBlocks.length)return;
+  noteLocalWrite();
+  var rows=localBlocks.map(function(b){return{
+    user_id:authUser.id,
+    date:date,
+    start_min:b.s,
+    end_min:b.e,
+    label:b.label||null,
+    category_id:b.cat||'personal',
+    energy:b.energy||null,
+    status:b.status||null,
+    note:b.note||null
+  }});
+  var result=await db.from('blocks').insert(rows).select();
+  if(result.error){console.error('insertBlocksToDb error:',result.error);return}
+  if(result.data){
+    for(var i=0;i<localBlocks.length&&i<result.data.length;i++){localBlocks[i]._id=result.data[i].id}
+  }
 }
 
 async function saveDayChecklistToDb(date,itemId,checked){
@@ -3431,6 +3469,8 @@ async function loadDataFromDb(){
 var realtimeChannel=null;
 var realtimeReloadTimer=null;
 var lastLocalWriteAt=0;
+var bulkOpInProgress=false; // C: true while a bulk day-block write runs; suppresses realtime reload
+var dayBlocksWriting=false; // C: re-entrancy guard for applyDayType bulk writes
 function noteLocalWrite(){lastLocalWriteAt=Date.now()}
 function setupRealtimeSync(){
   if(realtimeChannel||!authUser)return;
@@ -3455,6 +3495,11 @@ function setupRealtimeSync(){
 // Debounced reload triggered by realtime events
 function triggerReload(payload){
   console.log('[realtime] Change detected:',payload.table,payload.eventType);
+  // C: never reload while a bulk day-block write is in progress (would detach state mid-write)
+  if(bulkOpInProgress){
+    console.log('[realtime] Skipping reload — bulk op in progress');
+    return;
+  }
   // Skip reload if this device made a local write recently — likely the change is our own
   if(Date.now()-lastLocalWriteAt<3000){
     console.log('[realtime] Skipping reload — recent local write');

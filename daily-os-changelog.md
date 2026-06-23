@@ -1,3 +1,23 @@
+## v4.16.4 (23 June 2026)
+
+### Hotfix: stop duplicate blocks recurring after reset/replace
+
+Fixes day blocks duplicating and reappearing after applying or replacing a day's template, and persisting even after manually resetting and replacing the blocks.
+
+**Root cause:** applying or replacing a day's template wrote blocks by differencing against the ids held in memory. `applyDayType` collected the `_id`s of the blocks currently in memory, deleted exactly those, then inserted the template's blocks one at a time. Any block row that existed in the database for that date but was not in the in-memory list was never deleted, so it survived every replace and returned on the next load (`loadDataFromDb` reads every row for the date). Three things let orphan rows accumulate in the first place: no uniqueness on the blocks table, no guard against `applyDayType` running twice (a double tap or a re-fired modal ran the delete/insert loop twice, interleaved), and the per-block insert loop writing each new id back one at a time, which a realtime reload could interrupt by replacing the whole `data` object mid-loop and detaching the objects the loop was still updating.
+
+**Fixes:**
+- `applyDayType` now writes a day's blocks authoritatively: it deletes every block for that (user, date), then inserts the new set, mirroring how `saveTemplateToDb` already writes template blocks. Because it deletes by date rather than by known id, each replace also clears any orphan or duplicate rows for that day, so using the app normally heals duplicated days.
+- The per-block insert loop is replaced by a single bulk insert (`insertBlocksToDb`), with the returned ids mapped back onto the local blocks by order. One request instead of 15 to 20, so replace is noticeably faster.
+- Added a re-entrancy guard (`dayBlocksWriting`) so a double-fired apply cannot run the write twice, and a `bulkOpInProgress` flag that suppresses the realtime reload while a bulk write runs, so state can no longer be swapped mid-write.
+- `applyDayType` now captures the date at call time, so navigating to another day during the async write can no longer write blocks to the wrong date.
+
+**Notes:**
+- This stops new duplicates and self-heals any day you apply or replace a template on. It does not retroactively sweep days you never touch. If a specific day stays duplicated and you would rather not re-apply its template by hand, a one-time cleanup pass (delete duplicates keeping one per logical block, with a log-first safety net) can be added separately.
+- New helpers: `deleteBlocksForDateFromDb`, `insertBlocksToDb`. The single-row `insertBlockToDb` is retained for the manual "Add block" path.
+
+---
+
 ## v4.16.3 (12 June 2026)
 
 ### Duration control: relative adjust buttons replace fixed presets
