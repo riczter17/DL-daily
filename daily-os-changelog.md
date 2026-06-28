@@ -1,3 +1,24 @@
+## v4.16.7 (28 June 2026)
+
+### Fix: templates could be wiped to zero blocks during rapid edits
+
+A template (Sunday, in this case) could lose all its blocks while being edited. The new Move/Duration buttons made it easy to hit, because each tap triggered a full save.
+
+**Root cause:** `saveTemplateToDb` deletes all of a template's rows, then re-inserts them, so the template is momentarily empty in the database between the two steps. Nothing protected that window. A realtime reload (`loadDataFromDb` rebuilds every template from the database) or a second, overlapping save could read the template mid-delete, see zero blocks, and persist that empty state. Rapid taps on the Move/Duration buttons fired many overlapping saves, widening the window. This is the same class of race fixed for day blocks in v4.16.4, which template saves never received.
+
+**Fixes:**
+- Template saves are now debounced per template and serialised. Rapid edits coalesce into a single delete-then-insert instead of many overlapping ones. The on-screen change is still immediate; only the database write is debounced (~600ms).
+- A `templateWriting` flag now suppresses the realtime reload for the whole pending-and-writing window, so nothing can read a template in the gap between its delete and its insert. Mirrors the `bulkOpInProgress` guard used for day blocks.
+
+**Recovery / new control:**
+- Added a "Reset this template to default" button inside each template's edit page, which restores that single template from its built-in default without touching the others. Use it to restore Sunday. ("Reset All Templates" remains available but resets everything.)
+
+**Notes:**
+- `saveTemplateToDb` is now a debounced scheduler; the original write body moved to `_writeTemplateToDb`, run via the serialised `_runTemplateWrite`.
+- Deploying this stops the cause but does not itself restore already-lost data. Restore Sunday with the new reset button after deploying.
+
+---
+
 ## v4.16.6 (28 June 2026)
 
 ### Fix: Back button on an individual template now returns to the template list
