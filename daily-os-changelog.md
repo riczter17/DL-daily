@@ -1,3 +1,26 @@
+## v4.16.8 (28 June 2026)
+
+### Own your template defaults: Set current as default, Restore default
+
+Replaces the confusingly named "Reset this template to default" with a baseline you control, so "default" means your saved version rather than only the built-in factory one.
+
+**What changed:**
+- Each template's edit page now has two actions. "Set current as default" snapshots that template's current blocks as your baseline. "Restore default" replaces the template's blocks with your baseline, falling back to the built-in factory version if you have never saved one.
+- A caption shows the current source: "Default: your saved version" or "Default: built-in", so it is never ambiguous which one Restore will use. The confirm dialog also names the source.
+- The old single "Reset this template to default" button (4.16.7) is gone, replaced by the two actions above.
+
+**How the baseline is stored:**
+- Baselines live in the same Supabase tables as templates, under a separate `baseline:` key, saved through the same debounced, race-safe path as everything else. They are hidden from the template list and excluded from the template migrations, so they never appear as editable day types and are never auto-transformed.
+- "Reset All Templates" now keeps your saved baselines. Only the working templates revert to the built-in defaults; your baselines stay intact in the database.
+
+**Safety:**
+- "Set current as default" refuses to snapshot an empty template, so a wiped template cannot be saved as a baseline.
+- "Restore default" ignores an empty baseline and falls back to the built-in version, so it can never restore a template to zero blocks.
+
+**Restoring Sunday:** open Sunday, tap "Restore default". With no baseline saved yet, it uses the built-in version, which matches your expected Sunday. Reshape it as you like, then "Set current as default" to make that your baseline going forward.
+
+---
+
 ## v4.16.7 (28 June 2026)
 
 ### Fix: templates could be wiped to zero blocks during rapid edits

@@ -104,7 +104,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 console.log('Supabase client initialised:', db ? 'OK' : 'FAILED');
-var VER="v4.16.7";
+var VER="v4.16.8";
 // Daily reflection: set to true to bring the Reframe section back (hidden in v4.15.0).
 // When false, the Reframe inputs are not rendered. Stored reframe data is preserved either way.
 var SHOW_REFRAME=false;
@@ -588,7 +588,7 @@ if(!data.customActivities)data.customActivities=[];
 if(!data.goals)data.goals=[];
 if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));sv();}
 // Migrate: add Sleep blocks to existing templates if missing (v3.1)
-(function(){var changed=false;Object.keys(data.templates).forEach(function(k){var tpl=data.templates[k];if(!tpl||!tpl.length||k==='custom')return;var nonSleep=tpl.filter(function(b){return b.cat!=='sleep'});if(!nonSleep.length)return;var hasStartSleep=tpl.some(function(b){return b.cat==='sleep'&&b.s===0});var hasEndSleep=tpl.some(function(b){return b.cat==='sleep'&&b.e===1440});if(!hasStartSleep){var firstStart=Math.min.apply(null,nonSleep.map(function(b){return b.s}));if(firstStart>0){tpl.unshift({s:0,e:firstStart,label:"Sleep",cat:"sleep"});changed=true}}if(!hasEndSleep){var lastEnd=Math.max.apply(null,nonSleep.map(function(b){return b.e}));if(lastEnd<1440){tpl.push({s:lastEnd,e:1440,label:"Sleep",cat:"sleep"});changed=true}}tpl.sort(function(a,b){return a.s-b.s})});if(changed)sv()})();
+(function(){var changed=false;Object.keys(data.templates).forEach(function(k){var tpl=data.templates[k];if(!tpl||!tpl.length||k==='custom'||k.indexOf('baseline:')===0)return;var nonSleep=tpl.filter(function(b){return b.cat!=='sleep'});if(!nonSleep.length)return;var hasStartSleep=tpl.some(function(b){return b.cat==='sleep'&&b.s===0});var hasEndSleep=tpl.some(function(b){return b.cat==='sleep'&&b.e===1440});if(!hasStartSleep){var firstStart=Math.min.apply(null,nonSleep.map(function(b){return b.s}));if(firstStart>0){tpl.unshift({s:0,e:firstStart,label:"Sleep",cat:"sleep"});changed=true}}if(!hasEndSleep){var lastEnd=Math.max.apply(null,nonSleep.map(function(b){return b.e}));if(lastEnd<1440){tpl.push({s:lastEnd,e:1440,label:"Sleep",cat:"sleep"});changed=true}}tpl.sort(function(a,b){return a.s-b.s})});if(changed)sv()})();
 // Migrate: add BP reading to Sunday template if missing (v3.3)
 (function(){var s=data.templates&&data.templates.sunday;if(!s)return;if(s.some(function(b){return b.label==='BP reading'}))return;var readingBlk=s.filter(function(b){return b.label==='Reading'&&b.e===1275})[0];if(readingBlk){readingBlk.e=1260;s.push({s:1260,e:1275,label:"BP reading",cat:"health"});s.sort(function(a,b){return a.s-b.s});sv()}})();
 // Migrate: add breakfast block after morning commute in WIO templates (v3.4)
@@ -600,7 +600,7 @@ if(!data.templates||!data.templates.mum_wio){data.templates=JSON.parse(JSON.stri
 // Migrate old status values
 (function(){var changed=false;Object.keys(data.days).forEach(function(d){var dy=data.days[d];if(dy.blocks)dy.blocks.forEach(function(b){if(b.status==='done'){b.status='planned';changed=true}if(b.status==='skip'){b.status='skipped';changed=true}})});if(changed)sv()})();
 // v4.16.0: one-time migration of existing templates (open self-directed time + relocate meditation)
-(function(){if(!data||!data.templates||data.mig416)return;Object.keys(data.templates).forEach(function(k){if(k!=='custom')data.templates[k]=migrateTpl416(data.templates[k]);});data.mig416=true;sv();})();
+(function(){if(!data||!data.templates||data.mig416)return;Object.keys(data.templates).forEach(function(k){if(k!=='custom'&&k.indexOf('baseline:')!==0)data.templates[k]=migrateTpl416(data.templates[k]);});data.mig416=true;sv();})();
 
 var view="home",curDate=null,openBlk=null,openWeeks={},openCL=false;
 var pickerTarget=null,pickerBlkIdx=null,pickerField=null;
@@ -1233,7 +1233,10 @@ function rTemplates(){
       h+='</div>';
     });
     h+='<button class="btn bd mt8" onclick="addTplBlk()">+ Add block</button>';
-    h+='<button class="btn bo mt12" style="color:var(--red);border-color:var(--red)" onclick="resetTplToDefault()">\u{21BA} Reset this template to default</button>';
+    var hasBl=tplHasBaseline(editTpl);
+    h+='<div style="font-size:11px;color:var(--mut);margin:14px 0 6px 0">Default: '+(hasBl?'your saved version':'built-in')+'</div>';
+    h+='<button class="btn bo" onclick="setTplAsDefault()">Set current as default</button>';
+    h+='<button class="btn bo mt8" style="color:var(--red);border-color:var(--red)" onclick="restoreTplDefault()">\u{21BA} Restore default</button>';
     h+='<button class="btn bo mt12" onclick="editTpl=null;editTplBlk=null;R()">\u{2190} Back to templates</button>';
   }
   $.innerHTML=h;
@@ -1707,11 +1710,25 @@ function sortTplByTime(){
   data.templates[editTpl].sort(function(a,b){return a.s-b.s});
   editTplBlk=null;sv();saveTemplateToDb(editTpl);R();
 }
-function resetTplToDefault(){
-  if(!editTpl||!DEF_TEMPLATES[editTpl])return;
+function tplBaselineKey(k){return 'baseline:'+k}
+function tplHasBaseline(k){var b=data.templates[tplBaselineKey(k)];return !!(b&&b.length>0)}
+function setTplAsDefault(){
+  if(!editTpl)return;
+  var cur=data.templates[editTpl];
+  if(!cur||!cur.length){alert('This template has no blocks, so there is nothing to save as default.');return}
   var dt=gDT(editTpl);
-  if(!confirm('Reset the '+(dt?dt.l:editTpl)+' template to its default? This replaces its current blocks.'))return;
-  data.templates[editTpl]=JSON.parse(JSON.stringify(DEF_TEMPLATES[editTpl]));
+  if(!confirm('Save the current '+(dt?dt.l:editTpl)+' template as your default? Restore default will bring this version back.'))return;
+  data.templates[tplBaselineKey(editTpl)]=JSON.parse(JSON.stringify(cur));
+  sv();saveTemplateToDb(tplBaselineKey(editTpl));R();
+}
+function restoreTplDefault(){
+  if(!editTpl)return;
+  var dt=gDT(editTpl);
+  var useBaseline=tplHasBaseline(editTpl);
+  var src=useBaseline?data.templates[tplBaselineKey(editTpl)]:DEF_TEMPLATES[editTpl];
+  if(!src||!src.length){alert('No default available for this template.');return}
+  if(!confirm('Restore the '+(dt?dt.l:editTpl)+' template from '+(useBaseline?'your saved default':'the built-in default')+'? This replaces its current blocks.'))return;
+  data.templates[editTpl]=JSON.parse(JSON.stringify(src));
   editTplBlk=null;sv();saveTemplateToDb(editTpl);R();
 }
 function openTplPicker(idx,field){tplPicker={idx:idx,field:field};R()}
@@ -1726,11 +1743,16 @@ function tplPickM(m){
   var hh=Math.floor(b[tplPicker.field]/60);b[tplPicker.field]=hh*60+m;sv();saveTemplateToDb(editTpl);R();
 }
 function resetTemplates(){
-  if(!confirm("Reset all templates to default?"))return;
-  data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));editTpl=null;editTplBlk=null;sv();
-  // Also save each template to Supabase so the reset persists
+  if(!confirm("Reset all templates to default? Your saved per-template defaults are kept."))return;
+  // Keep any saved baselines; only the working templates revert to the built-in defaults.
+  var baselines={};
+  Object.keys(data.templates).forEach(function(k){if(k.indexOf('baseline:')===0)baselines[k]=data.templates[k]});
+  data.templates=JSON.parse(JSON.stringify(DEF_TEMPLATES));
+  Object.keys(baselines).forEach(function(k){data.templates[k]=baselines[k]});
+  editTpl=null;editTplBlk=null;sv();
+  // Persist the reset working templates (baselines are untouched in the DB)
   if(authUser){
-    Object.keys(data.templates).forEach(function(key){saveTemplateToDb(key)});
+    Object.keys(DEF_TEMPLATES).forEach(function(key){saveTemplateToDb(key)});
   }
   R();
 }
