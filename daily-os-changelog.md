@@ -1,3 +1,15 @@
+## v4.16.6 (28 June 2026)
+
+### Fix: Back button on an individual template now returns to the template list
+
+On a specific template's edit page, the top "← Back" button jumped to the home screen instead of the template list.
+
+**What changed:**
+- The top "← Back" button in Edit Templates is now context-aware: inside a specific template it returns to the template list; on the template list itself it goes home, as before.
+- The bottom "← Back to templates" button was already correct and is unchanged.
+
+---
+
 ## v4.16.5 (28 June 2026)
 
 ### Faster template editing: Move and Duration buttons in the template editor
