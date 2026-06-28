@@ -1,3 +1,20 @@
+## v4.16.5 (28 June 2026)
+
+### Faster template editing: Move and Duration buttons in the template editor
+
+Brings the day view's relative time controls into the template editor, so reshaping a template no longer means going through the scroll-wheel picker for every time change.
+
+**What changed:**
+- Each open block in the template editor now shows a Move row (left 1h, left 15m, 15m right, 1h right) and a Duration row (minus 1h, minus 15m, plus 15m, plus 1h), identical to the day view. Move shifts the whole block while keeping its length; Duration pins the start and moves the end.
+- Same edge rules as the day view: buttons disable at the 0 and 1440 boundaries, and a block cannot shrink below 15 minutes.
+- The scroll-wheel picker is unchanged and still available for setting a precise time.
+
+**Notes:**
+- New functions `shiftTplBlk` and `adjTplDur`, mirroring the day view's `shiftBlk` and `adjDur`, but writing to the template and persisting via `saveTemplateToDb`.
+- No ripple to neighbouring blocks and no gap/overlap guard in this change, by design. Adjusting one block does not move the next, so after reshaping use "Sort by time" and check the blocks stay contiguous, the same as before.
+
+---
+
 ## v4.16.4 (23 June 2026)
 
 ### Hotfix: stop duplicate blocks recurring after reset/replace
